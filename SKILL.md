@@ -1,18 +1,38 @@
 ---
 name: sergei-mikhailov-tg-channel-reader
-description: Read and summarize posts from Telegram channels via MTProto (Pyrogram). Fetch recent messages from public or private channels by time window.
+description: Read and summarize posts from Telegram channels via MTProto (Pyrogram or Telethon). Fetch recent messages from public or private channels by time window.
 metadata:
   openclaw:
     emoji: "📡"
     requires:
       bins: ["tg-reader"]
-      python: ["pyrogram", "tgcrypto"]
+      python: ["pyrogram", "tgcrypto", "telethon"]
 ---
 
 # tg-channel-reader
 
-Lets your agent read posts from Telegram channels using MTProto (Pyrogram).
+Lets your agent read posts from Telegram channels using MTProto (Pyrogram or Telethon).
 Works with any public channel and private channels the user is subscribed to.
+
+## Library Selection
+
+The skill supports two MTProto implementations:
+- **Pyrogram** (default) — modern, actively maintained
+- **Telethon** — alternative, useful if Pyrogram has issues
+
+Users can choose the library via:
+1. **Environment variable** (persistent):
+   ```bash
+   export TG_USE_TELETHON=true
+   ```
+2. **Command flag** (one-time):
+   ```bash
+   tg-reader fetch @channel --since 24h --telethon
+   ```
+
+Direct commands are also available:
+- `tg-reader-pyrogram` — force Pyrogram
+- `tg-reader-telethon` — force Telethon
 
 ## When to Use
 
@@ -56,8 +76,11 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
 ## How to Use
 
 ```bash
-# Fetch last 24h from one channel
+# Fetch last 24h from one channel (default: Pyrogram)
 tg-reader fetch @channel_name --since 24h --format json
+
+# Use Telethon instead (one-time)
+tg-reader fetch @channel_name --since 24h --telethon
 
 # Fetch last 7 days, up to 200 posts
 tg-reader fetch @channel_name --since 7d --limit 200
@@ -67,11 +90,15 @@ tg-reader fetch @channel1 @channel2 @channel3 --since 24h
 
 # Human-readable output
 tg-reader fetch @channel_name --since 24h --format text
+
+# Force specific library
+tg-reader-pyrogram fetch @channel_name --since 24h
+tg-reader-telethon fetch @channel_name --since 24h
 ```
 
 If `tg-reader` command is not found, use:
 ```bash
-python3 -m reader fetch @channel_name --since 24h
+python3 -m tg_reader_unified fetch @channel_name --since 24h
 ```
 
 ## Output Format

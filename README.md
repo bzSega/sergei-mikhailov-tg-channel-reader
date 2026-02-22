@@ -1,6 +1,6 @@
 # 📡 sergei-mikhailov-tg-channel-reader
 
-> OpenClaw skill for reading Telegram channels via MTProto (Pyrogram)
+> OpenClaw skill for reading Telegram channels via MTProto (Pyrogram or Telethon)
 
 An [OpenClaw](https://openclaw.ai) skill that lets your AI agent fetch and summarize posts from any Telegram channel — public or private (if you're subscribed).
 
@@ -12,6 +12,21 @@ An [OpenClaw](https://openclaw.ai) skill that lets your AI agent fetch and summa
 - 🔒 Secure credential storage via env vars
 - 🤖 Works with any public channel — no bot admin required
 
+## Why Use This Skill Instead of Web Monitoring?
+
+OpenClaw can monitor Telegram channels via web scraping, but this skill uses **MTProto** — the same official protocol used by the Telegram app itself. Here's why it matters:
+
+| | Web monitoring | This skill (MTProto) |
+|---|---|---|
+| **Reliability** | Breaks when Telegram updates its web UI | Always works — official protocol |
+| **Speed** | Slow (browser rendering) | Fast — direct API calls |
+| **Private channels** | ❌ Public only | ✅ Any channel you're subscribed to |
+| **Data richness** | Text only | Views, forwards, links, dates |
+| **Rate limits** | Frequent blocks & captchas | Soft limits, sufficient for personal use |
+| **Agent integration** | Requires extra parsing | Clean JSON, ready for agent to analyze |
+
+**Bottom line:** if you follow Telegram channels regularly and want your agent to summarize them, this skill is faster, more reliable, and gives you richer data than web monitoring.
+
 ## Install via ClawHub
 
 ```bash
@@ -22,7 +37,7 @@ Then install Python dependencies:
 
 ```bash
 cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto
+pip install pyrogram tgcrypto telethon
 pip install -e .
 ```
 
@@ -39,7 +54,7 @@ source ~/.bashrc
 cd ~/.openclaw/workspace/skills
 git clone https://github.com/bzSega/sergei-mikhailov-tg-channel-reader
 cd sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto
+pip install pyrogram tgcrypto telethon
 pip install -e .
 ```
 
@@ -93,11 +108,35 @@ You'll be asked for your phone number. After entering it, you'll receive a confi
 
 Authentication creates a session file at `~/.tg-reader-session.session`. You only need to do this once.
 
-### Step 4 — Start reading
+### Step 4 — Choose your library (optional)
+
+By default, `tg-reader` uses **Pyrogram**. You can switch to **Telethon** if needed:
+
+**Option 1: Environment variable (persistent)**
+```bash
+echo 'export TG_USE_TELETHON=true' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Option 2: Command flag (one-time)**
+```bash
+tg-reader fetch @durov --since 24h --telethon
+```
+
+**Option 3: Direct commands**
+```bash
+tg-reader-pyrogram fetch @durov --since 24h  # Force Pyrogram
+tg-reader-telethon fetch @durov --since 24h  # Force Telethon
+```
+
+### Step 5 — Start reading
 
 ```bash
-# Last 24 hours from a channel
+# Last 24 hours from a channel (default: Pyrogram)
 tg-reader fetch @durov --since 24h
+
+# Use Telethon instead
+tg-reader fetch @durov --since 24h --telethon
 
 # Last week, multiple channels
 tg-reader fetch @channel1 @channel2 --since 7d --limit 200
@@ -151,6 +190,41 @@ Or run directly with Python:
 python3 -m reader auth
 python3 -m reader fetch @channel --since 24h
 ```
+
+## Library Selection
+
+The skill supports two MTProto implementations that you can switch between:
+
+### Pyrogram (default)
+- Modern, actively maintained
+- Default choice for `tg-reader` command
+- Session file: `~/.tg-reader-session.session`
+
+### Telethon (alternative)
+- Mature, stable library
+- Useful if you experience issues with Pyrogram
+- Session file: `~/.telethon-reader.session`
+
+### How to switch
+
+**Temporary (one command):**
+```bash
+tg-reader fetch @durov --since 24h --telethon
+```
+
+**Permanent (all commands):**
+```bash
+echo 'export TG_USE_TELETHON=true' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Direct commands (bypass auto-selection):**
+```bash
+tg-reader-pyrogram fetch @durov --since 24h
+tg-reader-telethon fetch @durov --since 24h
+```
+
+Both implementations use the same API credentials and provide identical functionality.
 
 **Confirmation code not arriving**
 - Check all your Telegram devices — the code goes to the Telegram app, not SMS
