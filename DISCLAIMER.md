@@ -32,6 +32,3 @@ This software interacts with Telegram's MTProto protocol to access your account.
 
 **By using this software, you accept full responsibility for any consequences arising from its use.**
 
----
-
-*This disclaimer is provided for informational purposes only and does not constitute legal advice. For legal questions, consult a qualified attorney in your jurisdiction.*
