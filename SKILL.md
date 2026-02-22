@@ -7,12 +7,28 @@ metadata:
     requires:
       bins: ["tg-reader"]
       python: ["pyrogram", "tgcrypto", "telethon"]
+      env:
+        - name: TG_API_ID
+          description: Telegram API ID from my.telegram.org. Required for MTProto authentication.
+          required: true
+        - name: TG_API_HASH
+          description: Telegram API Hash from my.telegram.org. Treat as a secret — never commit to git.
+          required: true
+          secret: true
+        - name: TG_SESSION
+          description: Path to session file (optional, default is ~/.tg-reader-session). Session grants full account access — store securely.
+          required: false
+        - name: TG_USE_TELETHON
+          description: Set to "true" to use Telethon instead of Pyrogram (optional).
+          required: false
 ---
 
 # tg-channel-reader
 
 Lets your agent read posts from Telegram channels using MTProto (Pyrogram or Telethon).
 Works with any public channel and private channels the user is subscribed to.
+
+> ⚠️ **Security notice:** This skill requires `TG_API_ID` and `TG_API_HASH` credentials from [my.telegram.org](https://my.telegram.org). The resulting session file grants full access to the Telegram account — store it securely and never share it.
 
 ## Library Selection
 
@@ -147,5 +163,6 @@ Store the user's tracked channels in `TOOLS.md`:
 
 ## Security Notes
 
-- Session file (`~/.tg-reader-session.session`) grants full account access — keep it safe
+- Session file (`~/.tg-reader-session.session`) grants **full account access** — keep it safe
 - Never share or commit `TG_API_HASH` or session files
+- `TG_API_HASH` should be treated as a secret — store in env vars, not in files tracked by git

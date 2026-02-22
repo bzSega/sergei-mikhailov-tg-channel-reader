@@ -241,6 +241,23 @@ Both implementations use the same API credentials and provide identical function
 
 ## Security
 
+This skill uses **MTProto** — the same protocol as the official Telegram app. This means:
+
+- 🔑 **`TG_API_HASH` is a secret** — treat it like a password. Never commit it to git, never share it.
+- 📱 **Session file = full account access** — `~/.tg-reader-session.session` grants complete access to your Telegram account. Keep it on your machine only.
+- 🚫 **Never copy session files** between machines or share them with anyone.
+- 👁️ **Your agent can read private channels** you're subscribed to — this is by design, but be aware of it.
+
+**What the skill does NOT do:**
+- Does not send messages on your behalf
+- Does not modify or delete anything
+- Does not share your data with third parties
+
+**Best practices:**
+- Store credentials in env vars, not in files tracked by git
+- Add `*.session` and `.tg-reader.json` to `.gitignore`
+- Revoke your API app on my.telegram.org if credentials are compromised
+
 - ✅ Credentials stored in env vars or `~/.tg-reader.json` (outside the project)
 - ✅ Session file stored in home directory (`~/.tg-reader-session.session`)
 - ❌ Never commit `TG_API_HASH`, `TG_API_ID`, or `*.session` files
