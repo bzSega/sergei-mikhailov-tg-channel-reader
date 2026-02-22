@@ -239,6 +239,10 @@ Both implementations use the same API credentials and provide identical function
 - Telegram is rate-limiting requests
 - The error shows how many seconds to wait — just retry after that
 
+## Legal
+
+By using this skill you agree to the terms in [DISCLAIMER.md](./DISCLAIMER.md).
+
 ## Security
 
 This skill uses **MTProto** — the same protocol as the official Telegram app. This means:
