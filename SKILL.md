@@ -43,6 +43,12 @@ Full setup instructions are in [README.md](./README.md). Summary:
    cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
    pip install pyrogram tgcrypto telethon && pip install -e .
    ```
+   On Linux with managed Python (Ubuntu/Debian), use venv instead:
+   ```bash
+   python3 -m venv ~/.venv/tg-reader
+   ~/.venv/tg-reader/bin/pip install pyrogram tgcrypto telethon && ~/.venv/tg-reader/bin/pip install -e .
+   echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+   ```
 4. Authenticate once: `tg-reader auth`
 5. Set session file permissions: `chmod 600 ~/.tg-reader-session.session`
 
@@ -89,6 +95,7 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
    ```bash
    tg-reader auth
    ```
+   - Pyrogram will ask to confirm the phone number — answer `y`
    - User will receive a code in their Telegram app (message from "Telegram" service chat)
    - If code doesn't arrive — check all devices where Telegram is open
 5. Set secure permissions on the session file:

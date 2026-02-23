@@ -1,3 +1,14 @@
+## [0.4.2] - 2026-02-23
+
+### Fixed
+- `README.md`: fix `python3 -m reader` fallback → `python3 -m tg_reader_unified`
+- `README.md`: add Linux venv install instructions for managed Python environments (Debian/Ubuntu)
+- `README.md`: add macOS `~/.zshrc` for `TG_USE_TELETHON` alongside Linux `~/.bashrc`
+- `README.md`: update PATH section to cover venv bin path, not just `~/.local/bin`
+- `README.md`: add note to confirm phone number with `y` during Pyrogram auth
+- `SKILL.md`: add Linux venv install instructions
+- `SKILL.md`: add note to confirm phone number with `y` during Pyrogram auth
+
 ## [0.4.1] - 2026-02-23
 
 ### Security

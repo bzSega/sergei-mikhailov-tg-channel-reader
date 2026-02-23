@@ -41,7 +41,23 @@ pip install pyrogram tgcrypto telethon
 pip install -e .
 ```
 
-Make sure `~/.local/bin` is in your PATH:
+> **Linux users:** if you get `externally-managed-environment` error, use a virtual environment:
+> ```bash
+> python3 -m venv ~/.venv/tg-reader
+> ~/.venv/tg-reader/bin/pip install pyrogram tgcrypto telethon
+> ~/.venv/tg-reader/bin/pip install -e .
+> echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc
+> source ~/.bashrc
+> ```
+
+Make sure `tg-reader` is in your PATH. On macOS (default pip install):
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+On Linux (default pip install):
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
@@ -122,7 +138,7 @@ secret-tool store --label="TG API" service tg-reader username api
 tg-reader auth
 ```
 
-You'll be asked for your phone number. After entering it, you'll receive a confirmation code in your Telegram app — look for a message from the official **"Telegram"** service chat (not SMS).
+You'll be asked for your phone number. Enter it with country code (e.g. `+79991234567`) and confirm with `y` when prompted. You'll then receive a confirmation code in your Telegram app — look for a message from the official **"Telegram"** service chat (not SMS).
 
 > If the code doesn't arrive — check all devices where Telegram is open (phone, desktop, web).
 
@@ -134,6 +150,11 @@ By default, `tg-reader` uses **Pyrogram**. You can switch to **Telethon** if nee
 
 **Option 1: Environment variable (persistent)**
 ```bash
+# macOS
+echo 'export TG_USE_TELETHON=true' >> ~/.zshrc
+source ~/.zshrc
+
+# Linux
 echo 'export TG_USE_TELETHON=true' >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -199,7 +220,13 @@ The agent will automatically use `tg-reader` and summarize the results.
 
 **`tg-reader: command not found`**
 
-Add `~/.local/bin` to your PATH:
+If installed via venv, make sure the venv bin is in your PATH:
+```bash
+echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Otherwise add `~/.local/bin`:
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
@@ -207,8 +234,8 @@ source ~/.bashrc
 
 Or run directly with Python:
 ```bash
-python3 -m reader auth
-python3 -m reader fetch @channel --since 24h
+python3 -m tg_reader_unified auth
+python3 -m tg_reader_unified fetch @channel --since 24h
 ```
 
 ## Library Selection
