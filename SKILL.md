@@ -31,6 +31,23 @@ Direct commands are also available:
 - `tg-reader-pyrogram` — force Pyrogram
 - `tg-reader-telethon` — force Telethon
 
+## Setup & Installation
+
+Full setup instructions are in [README.md](./README.md). Summary:
+
+1. Get Telegram API credentials from https://my.telegram.org → API Development Tools
+2. Set `TG_API_ID` and `TG_API_HASH` as environment variables
+3. Install the skill and its Python dependencies:
+   ```bash
+   npx clawhub@latest install sergei-mikhailov-tg-channel-reader
+   cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
+   pip install pyrogram tgcrypto telethon && pip install -e .
+   ```
+4. Authenticate once: `tg-reader auth`
+5. Set session file permissions: `chmod 600 ~/.tg-reader-session.session`
+
+> If the user asks for help with setup, refer them to README.md for full options (env vars, direnv, keychain, etc.).
+
 ## When to Use
 
 Use this skill when the user:
