@@ -1,26 +1,7 @@
 ---
 name: sergei-mikhailov-tg-channel-reader
 description: Read and summarize posts from Telegram channels via MTProto (Pyrogram or Telethon). Fetch recent messages from public or private channels by time window.
-metadata:
-  openclaw:
-    emoji: "📡"
-    requires:
-      bins: ["tg-reader"]
-      python: ["pyrogram", "tgcrypto", "telethon"]
-      env:
-        - name: TG_API_ID
-          description: Telegram API ID from my.telegram.org. Required for MTProto authentication.
-          required: true
-        - name: TG_API_HASH
-          description: Telegram API Hash from my.telegram.org. Treat as a secret — never commit to git.
-          required: true
-          secret: true
-        - name: TG_SESSION
-          description: Path to session file (optional, default is ~/.tg-reader-session). Session grants full account access — store securely.
-          required: false
-        - name: TG_USE_TELETHON
-          description: Set to "true" to use Telethon instead of Pyrogram (optional).
-          required: false
+metadata: {"openclaw": {"emoji": "📡", "requires": {"bins": ["tg-reader"], "env": ["TG_API_ID", "TG_API_HASH"]}, "primaryEnv": "TG_API_HASH"}}
 ---
 
 # tg-channel-reader
@@ -77,13 +58,19 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
    - Copy **App api_id** (a number) and **App api_hash** (32-character string)
 3. Ask user to set credentials:
    ```bash
+   # macOS (zsh)
+   echo 'export TG_API_ID=their_id' >> ~/.zshrc
+   echo 'export TG_API_HASH=their_hash' >> ~/.zshrc
+   source ~/.zshrc
+
+   # Linux (bash)
    echo 'export TG_API_ID=their_id' >> ~/.bashrc
    echo 'export TG_API_HASH=their_hash' >> ~/.bashrc
    source ~/.bashrc
    ```
 4. Run auth:
    ```bash
-   python3 -m reader auth
+   tg-reader auth
    ```
    - User will receive a code in their Telegram app (message from "Telegram" service chat)
    - If code doesn't arrive — check all devices where Telegram is open
@@ -159,7 +146,7 @@ Store the user's tracked channels in `TOOLS.md`:
 - `Missing credentials` → guide user through setup (see above)
 - `FloodWait` → tell user to wait N seconds and retry
 - `ChannelInvalid` → channel doesn't exist or user not subscribed (for private)
-- `tg-reader: command not found` → use `python3 -m reader` instead
+- `tg-reader: command not found` → use `python3 -m tg_reader_unified` instead
 
 ## Security Notes
 

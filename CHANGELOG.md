@@ -1,3 +1,18 @@
+## [0.4.0] - 2026-02-23
+
+### Fixed
+- `SKILL.md` frontmatter converted to single-line JSON as required by OpenClaw spec
+- `requires.env` format corrected to array of strings `["TG_API_ID", "TG_API_HASH"]`
+- Removed undocumented `requires.python` field from metadata
+- Removed optional env vars (`TG_SESSION`, `TG_USE_TELETHON`) from gating filter
+- Added missing `primaryEnv: "TG_API_HASH"` for openclaw.json `apiKey` support
+- Auth command in setup guide corrected from `python3 -m reader auth` to `tg-reader auth`
+- Fallback command in Error Handling corrected to `python3 -m tg_reader_unified`
+
+### Added
+- macOS (`~/.zshrc`) credentials setup alongside Linux (`~/.bashrc`) in agent instructions
+- `CLAUDE.md` with project context and documentation references for Claude Code
+
 ## [0.2.1] - 2026-02-22
 
 ### Added
