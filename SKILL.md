@@ -61,6 +61,7 @@ Use this skill when the user:
 - Wants a digest or summary of recent posts from channels
 - Asks "what's new in @channel" or "summarize last 24h from @channel"
 - Wants to track multiple channels and compare content
+- Wants to know what a channel is about — use `info` to get title, description, subscriber count
 
 ## Before Running — Check Credentials
 
@@ -79,7 +80,17 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
    - Fill in "App title" (any name) and "Short name" (any short word)
    - Click **"Create application"**
    - Copy **App api_id** (a number) and **App api_hash** (32-character string)
-3. Ask user to set credentials:
+3. Ask user to set credentials. **Use `~/.tg-reader.json` — it works reliably in all environments** including agents and servers that don't load `.bashrc`/`.zshrc`:
+   ```bash
+   cat > ~/.tg-reader.json << 'EOF'
+   {
+     "api_id": their_id,
+     "api_hash": "their_hash"
+   }
+   EOF
+   chmod 600 ~/.tg-reader.json
+   ```
+   Alternatively, env vars (only if running interactively in a shell):
    ```bash
    # macOS (zsh)
    echo 'export TG_API_ID=their_id' >> ~/.zshrc
@@ -91,6 +102,7 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
    echo 'export TG_API_HASH=their_hash' >> ~/.bashrc
    source ~/.bashrc
    ```
+   > **Note:** Agents and servers typically don't load `.bashrc`/`.zshrc`. If credentials are not found after setting env vars, use `~/.tg-reader.json` instead.
 4. Run auth:
    ```bash
    tg-reader auth
@@ -107,6 +119,9 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
 ## How to Use
 
 ```bash
+# Get channel title, description and subscriber count
+tg-reader info @channel_name
+
 # Fetch last 24h from one channel (default: Pyrogram)
 tg-reader fetch @channel_name --since 24h --format json
 
@@ -134,6 +149,19 @@ python3 -m tg_reader_unified fetch @channel_name --since 24h
 
 ## Output Format
 
+### info
+```json
+{
+  "id": -1001234567890,
+  "title": "Channel Name",
+  "username": "channel_name",
+  "description": "About this channel...",
+  "members_count": 42000,
+  "link": "https://t.me/channel_name"
+}
+```
+
+### fetch
 ```json
 {
   "channel": "@channel_name",

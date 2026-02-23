@@ -115,6 +115,25 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, include_me
     return list(results)
 
 
+# ── Channel info ─────────────────────────────────────────────────────────────
+
+async def fetch_info(channel: str):
+    api_id, api_hash, session_name = get_config()
+    async with Client(session_name, api_id=api_id, api_hash=api_hash) as app:
+        try:
+            chat = await app.get_chat(channel)
+            return {
+                "id": chat.id,
+                "title": chat.title,
+                "username": chat.username,
+                "description": chat.description,
+                "members_count": chat.members_count,
+                "link": f"https://t.me/{chat.username}" if chat.username else None,
+            }
+        except (ChannelInvalid, UsernameNotOccupied) as e:
+            return {"error": str(e), "channel": channel}
+
+
 # ── Auth setup ───────────────────────────────────────────────────────────────
 
 async def setup_auth():
@@ -144,10 +163,19 @@ def main():
     fetch_p.add_argument("--media", action="store_true", help="Include media type info")
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
 
+    # info
+    info_p = sub.add_parser("info", help="Get channel title, description and subscriber count")
+    info_p.add_argument("channel", help="Channel username e.g. @durov")
+
     # auth
     sub.add_parser("auth", help="Authenticate with Telegram (first-time setup)")
 
     args = parser.parse_args()
+
+    if args.cmd == "info":
+        result = asyncio.run(fetch_info(args.channel))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
 
     if args.cmd == "auth":
         asyncio.run(setup_auth())

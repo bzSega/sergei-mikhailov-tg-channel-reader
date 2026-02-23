@@ -1,3 +1,10 @@
+## [0.5.0] - 2026-02-23
+
+### Added
+- `tg-reader info @channel` — new subcommand to fetch channel title, description, subscriber count and link
+- `SKILL.md`: documented `info` command in When to Use, How to Use, and Output Format sections
+- `SKILL.md`: `~/.tg-reader.json` recommended as primary credentials method for agent/server environments that don't load `.bashrc`/`.zshrc`
+
 ## [0.4.3] - 2026-02-23
 
 ### Fixed
