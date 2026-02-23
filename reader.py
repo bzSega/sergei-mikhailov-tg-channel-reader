@@ -20,6 +20,11 @@ except ImportError:
     sys.exit(1)
 
 
+# Use Pyrogram's default device identity (Python MTProto client).
+# Spoofing a mobile client causes Telegram to terminate sessions — the
+# behaviour doesn't match and it's detected server-side.
+_DEVICE: dict = {}
+
 # ── Config ──────────────────────────────────────────────────────────────────
 
 def get_config():
@@ -73,14 +78,15 @@ async def fetch_messages(channel: str, since: datetime, limit: int, include_medi
     api_id, api_hash, session_name = get_config()
 
     messages = []
-    async with Client(session_name, api_id=api_id, api_hash=api_hash) as app:
+    async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
         try:
             async for msg in app.get_chat_history(channel, limit=limit):
-                if msg.date < since:
+                msg_date = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
+                if msg_date < since:
                     break
                 entry = {
                     "id": msg.id,
-                    "date": msg.date.isoformat(),
+                    "date": msg_date.isoformat(),
                     "text": msg.text or msg.caption or "",
                     "views": msg.views,
                     "forwards": msg.forwards,
@@ -116,7 +122,7 @@ async def setup_auth():
     api_id, api_hash, session_name = get_config()
     print(f"Starting auth for session: {session_name}")
     print("You will receive a code in Telegram. Enter it when prompted.")
-    async with Client(session_name, api_id=api_id, api_hash=api_hash) as app:
+    async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
         me = await app.get_me()
         print(json.dumps({"status": "authenticated", "user": me.username or str(me.id)}))
 

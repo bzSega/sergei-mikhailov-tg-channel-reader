@@ -175,6 +175,16 @@ Store the user's tracked channels in `TOOLS.md`:
 - `FloodWait` → tell user to wait N seconds and retry
 - `ChannelInvalid` → channel doesn't exist or user not subscribed (for private)
 - `tg-reader: command not found` → use `python3 -m tg_reader_unified` instead
+- `AUTH_KEY_UNREGISTERED` → session expired or invalidated; delete session file and re-auth:
+  ```bash
+  rm -f ~/.tg-reader-session.session
+  tg-reader auth
+  ```
+- Auth code not arriving / connection issues → use the verbose debug script:
+  ```bash
+  python3 debug_auth.py
+  ```
+  It shows full MTProto-level logs so you can see exactly where the connection fails.
 
 ## Security Notes
 
