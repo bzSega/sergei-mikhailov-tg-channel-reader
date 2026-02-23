@@ -74,7 +74,11 @@ If you see `{"error": "Missing credentials..."}` — stop and guide the user:
    ```
    - User will receive a code in their Telegram app (message from "Telegram" service chat)
    - If code doesn't arrive — check all devices where Telegram is open
-5. After auth succeeds — retry the original request
+5. Set secure permissions on the session file:
+   ```bash
+   chmod 600 ~/.tg-reader-session.session
+   ```
+6. After auth succeeds — retry the original request
 
 ## How to Use
 

@@ -1,3 +1,9 @@
+## [0.4.1] - 2026-02-23
+
+### Security
+- `test_session.py`: replaced partial `api_hash[:10]` print with masked output (`***`) to prevent secret leakage in logs or shared terminals
+- `SKILL.md`: added `chmod 600` step after auth to restrict session file permissions
+
 ## [0.4.0] - 2026-02-23
 
 ### Fixed

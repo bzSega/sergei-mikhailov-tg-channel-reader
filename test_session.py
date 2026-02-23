@@ -21,7 +21,7 @@ async def test_session():
     
     print(f"Testing session: {session_name}.session")
     print(f"API ID: {api_id}")
-    print(f"API Hash: {api_hash[:10]}...")
+    print(f"API Hash: {'*' * len(api_hash)}")
     
     client = TelegramClient(session_name, int(api_id), api_hash)
     await client.connect()
