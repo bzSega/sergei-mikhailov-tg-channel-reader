@@ -1,3 +1,14 @@
+## [0.6.0] - 2026-02-24
+
+### Added
+- `--config-file` flag — pass explicit path to config JSON (overrides `~/.tg-reader.json`)
+- `--session-file` flag — pass explicit path to session file (overrides default session path)
+- Both flags work with all subcommands (`fetch`, `info`, `auth`) and both backends (Pyrogram, Telethon)
+- `SKILL.md`: new "Isolated Agents & Cron Jobs" section with usage examples
+
+### Fixed
+- Skill now works in isolated sub-agent environments (e.g. OpenClaw cron with `sessionTarget: "isolated"`) where `~/` is not accessible
+
 ## [0.5.0] - 2026-02-23
 
 ### Added

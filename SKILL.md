@@ -140,12 +140,29 @@ tg-reader fetch @channel_name --since 24h --format text
 # Force specific library
 tg-reader-pyrogram fetch @channel_name --since 24h
 tg-reader-telethon fetch @channel_name --since 24h
+
+# Explicit config and session paths (for isolated agents / cron jobs)
+tg-reader fetch @channel_name --since 6h \
+  --config-file /home/user/.tg-reader.json \
+  --session-file /home/user/.tg-reader-session
 ```
 
 If `tg-reader` command is not found, use:
 ```bash
 python3 -m tg_reader_unified fetch @channel_name --since 24h
 ```
+
+## Isolated Agents & Cron Jobs
+
+When the skill runs inside an isolated sub-agent (e.g. `sessionTarget: "isolated"` in OpenClaw cron), it may not have access to the user's home directory. Use `--config-file` and `--session-file` to pass explicit paths:
+
+```bash
+tg-reader fetch @channel --since 6h \
+  --config-file /home/user/.tg-reader.json \
+  --session-file /home/user/.tg-reader-session
+```
+
+Both flags work with all subcommands (`fetch`, `info`, `auth`) and with both backends (Pyrogram and Telethon).
 
 ## Output Format
 
