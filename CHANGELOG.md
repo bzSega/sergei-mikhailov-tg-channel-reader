@@ -2,6 +2,16 @@
 
 ---
 
+## [0.8.5] - 2026-03-01
+
+**Clear guide for running the skill on a schedule.** The "Isolated Agents & Cron Jobs" section is now a full "Scheduled Tasks & Cron" guide with two approaches: `sessionTarget: "main"` (recommended — reminder-based, works out of the box) and `sessionTarget: "isolated"` (autonomous but requires Docker setup and session file mounting). The agent now explains the trade-offs to the user when setting up a cron task.
+
+### Changed
+- `SKILL.md`: replaced "Isolated Agents & Cron Jobs" section with expanded "Scheduled Tasks & Cron" covering both session target modes, configuration examples, and session file caveats
+- Agent instruction added: when creating a scheduled task, explain to the user which approach is used and what it means
+
+---
+
 ## [0.8.4] - 2026-02-28
 
 **Read what people are saying in the comments.** Add `--comments` to a fetch command and the skill retrieves discussion replies for each channel post — great for sentiment analysis, audience feedback, and topic tracking. Works with both Pyrogram and Telethon backends.

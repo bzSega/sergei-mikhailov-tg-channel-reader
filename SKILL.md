@@ -206,9 +206,56 @@ tg-reader fetch @channel --since 24h --telethon
 
 ---
 
-## Isolated Agents & Cron Jobs
+## Scheduled Tasks & Cron
 
-When the skill runs inside an isolated sub-agent (e.g. `sessionTarget: "isolated"` in OpenClaw cron), it may not have access to `~/`. Use explicit paths:
+This skill needs network access (MTProto connection to Telegram servers) and a session file. How you configure OpenClaw cron depends on the session target.
+
+> **Important:** When setting up a scheduled task that uses `tg-reader`, tell the user which approach you're using and what it means — so they can make an informed choice.
+
+### Option A — `sessionTarget: "main"` (recommended)
+
+The cron task sends a **reminder** to the main agent session. The agent then runs `tg-reader` in the main environment where the skill, credentials, and session file are already available.
+
+**Pros:** No extra configuration — everything works out of the box.
+**Cons:** Not fully autonomous — the task sends a system event, the agent picks it up and executes. Requires `payload.kind: "systemEvent"` (OpenClaw cron API limitation for main target).
+
+**How to set up:**
+1. Create a cron task with `sessionTarget: "main"` and `payload.kind: "systemEvent"`
+2. In the task description, include the exact `tg-reader` command to run
+3. The agent receives the reminder and executes the command in its main session
+
+### Option B — `sessionTarget: "isolated"` (autonomous, complex setup)
+
+The cron task runs in a **Docker container** — fully autonomous, no agent interaction needed. However, the container starts empty: no skill, no credentials, no session file.
+
+**Pros:** Fully autonomous — runs on schedule without agent involvement.
+**Cons:** Requires Docker setup; session file must be mounted into the container (may not work reliably — session files are tied to the machine and Telegram may invalidate them in a new environment).
+
+**Required configuration in `~/.openclaw/openclaw.json`:**
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "docker": {
+          "setupCommand": "clawhub install sergei-mikhailov-tg-channel-reader && cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader && pip install pyrogram tgcrypto telethon && pip install .",
+          "env": {
+            "TG_API_ID": "YOUR_ID",
+            "TG_API_HASH": "YOUR_HASH"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**⚠️ Session file caveat:** The Telegram session file (`~/.tg-reader-session.session`) must also be available inside the container. This may require Docker volume mounting and might not work reliably — Telegram can invalidate sessions when they appear from a different environment. If you encounter `AUTH_KEY_UNREGISTERED` errors in isolated mode, switch to Option A.
+
+### Explicit paths (both options)
+
+When `~/` is not available or points to a different location, use explicit paths:
 
 ```bash
 tg-reader-check \
