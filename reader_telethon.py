@@ -14,11 +14,34 @@ from pathlib import Path
 
 try:
     from telethon import TelegramClient
-    from telethon.errors import FloodWaitError, ChannelInvalidError, UsernameNotOccupiedError
+    from telethon.errors import (
+        FloodWaitError,
+        ChannelInvalidError,
+        ChannelPrivateError,
+        ChannelBannedError,
+        ChatForbiddenError,
+        ChatInvalidError,
+        ChatRestrictedError,
+        PeerIdInvalidError,
+        UsernameNotOccupiedError,
+        UserBannedInChannelError,
+        InviteHashExpiredError,
+        InviteHashInvalidError,
+    )
     from telethon.tl.types import Channel
 except ImportError:
     print(json.dumps({"error": "telethon not installed. Run: pip install telethon"}))
     sys.exit(1)
+
+
+def _channel_error(channel: str, error_type: str, message: str, action: str) -> dict:
+    """Build a structured channel error dict for the agent."""
+    return {
+        "error": message,
+        "error_type": error_type,
+        "channel": channel,
+        "action": action,
+    }
 
 
 # ── Session helpers ──────────────────────────────────────────────────────────
@@ -173,12 +196,43 @@ async def fetch_messages(client: TelegramClient, channel: str, since: datetime, 
             
             messages.append(entry)
             
-    except (ChannelInvalidError, UsernameNotOccupiedError, ValueError) as e:
-        return {"error": str(e), "channel": channel}
+    except (ChannelPrivateError, ChatForbiddenError, ChatRestrictedError) as e:
+        return _channel_error(
+            channel, "access_denied",
+            f"Channel is private or access denied: {e}",
+            "remove_from_list_or_rejoin",
+        )
+    except (ChannelBannedError, UserBannedInChannelError) as e:
+        return _channel_error(
+            channel, "banned",
+            f"Banned from channel: {e}",
+            "remove_from_list",
+        )
+    except (ChannelInvalidError, ChatInvalidError, PeerIdInvalidError,
+            UsernameNotOccupiedError, ValueError) as e:
+        return _channel_error(
+            channel, "not_found",
+            f"Channel not found or username is incorrect: {e}",
+            "check_username",
+        )
+    except (InviteHashExpiredError, InviteHashInvalidError) as e:
+        return _channel_error(
+            channel, "invite_expired",
+            f"Invite link expired or invalid: {e}",
+            "request_new_invite",
+        )
     except FloodWaitError as e:
-        return {"error": f"FloodWait: retry after {e.seconds}s", "channel": channel}
+        return _channel_error(
+            channel, "flood_wait",
+            f"Rate limited: retry after {e.seconds}s",
+            f"wait_{e.seconds}s",
+        )
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}", "channel": channel}
+        return _channel_error(
+            channel, "unexpected",
+            f"Unexpected error: {e}",
+            "report_to_user",
+        )
 
     return {
         "channel": channel,

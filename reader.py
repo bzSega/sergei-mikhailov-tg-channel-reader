@@ -14,10 +14,33 @@ from pathlib import Path
 
 try:
     from pyrogram import Client
-    from pyrogram.errors import FloodWait, ChannelInvalid, UsernameNotOccupied
+    from pyrogram.errors import (
+        FloodWait,
+        ChannelInvalid,
+        ChannelPrivate,
+        ChannelBanned,
+        ChatForbidden,
+        ChatInvalid,
+        ChatRestricted,
+        PeerIdInvalid,
+        UsernameNotOccupied,
+        UserBannedInChannel,
+        InviteHashExpired,
+        InviteHashInvalid,
+    )
 except ImportError:
     print(json.dumps({"error": "pyrogram not installed. Run: pip install pyrogram tgcrypto"}))
     sys.exit(1)
+
+
+def _channel_error(channel: str, error_type: str, message: str, action: str) -> dict:
+    """Build a structured channel error dict for the agent."""
+    return {
+        "error": message,
+        "error_type": error_type,
+        "channel": channel,
+        "action": action,
+    }
 
 
 # Use Pyrogram's default device identity (Python MTProto client).
@@ -167,10 +190,36 @@ async def fetch_messages(channel: str, since: datetime, limit: int, include_medi
                 if include_media and msg.media:
                     entry["media_type"] = str(msg.media)
                 messages.append(entry)
-        except (ChannelInvalid, UsernameNotOccupied) as e:
-            return {"error": str(e), "channel": channel}
+        except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
+            return _channel_error(
+                channel, "access_denied",
+                f"Channel is private or access denied: {e}",
+                "remove_from_list_or_rejoin",
+            )
+        except (ChannelBanned, UserBannedInChannel) as e:
+            return _channel_error(
+                channel, "banned",
+                f"Banned from channel: {e}",
+                "remove_from_list",
+            )
+        except (ChannelInvalid, ChatInvalid, PeerIdInvalid, UsernameNotOccupied) as e:
+            return _channel_error(
+                channel, "not_found",
+                f"Channel not found or username is incorrect: {e}",
+                "check_username",
+            )
+        except (InviteHashExpired, InviteHashInvalid) as e:
+            return _channel_error(
+                channel, "invite_expired",
+                f"Invite link expired or invalid: {e}",
+                "request_new_invite",
+            )
         except FloodWait as e:
-            return {"error": f"FloodWait: retry after {e.value}s", "channel": channel}
+            return _channel_error(
+                channel, "flood_wait",
+                f"Rate limited: retry after {e.value}s",
+                f"wait_{e.value}s",
+            )
 
     return {
         "channel": channel,
@@ -205,8 +254,24 @@ async def fetch_info(channel: str, config_file=None, session_file=None):
                 "members_count": chat.members_count,
                 "link": f"https://t.me/{chat.username}" if chat.username else None,
             }
-        except (ChannelInvalid, UsernameNotOccupied) as e:
-            return {"error": str(e), "channel": channel}
+        except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
+            return _channel_error(
+                channel, "access_denied",
+                f"Channel is private or access denied: {e}",
+                "remove_from_list_or_rejoin",
+            )
+        except (ChannelBanned, UserBannedInChannel) as e:
+            return _channel_error(
+                channel, "banned",
+                f"Banned from channel: {e}",
+                "remove_from_list",
+            )
+        except (ChannelInvalid, ChatInvalid, PeerIdInvalid, UsernameNotOccupied) as e:
+            return _channel_error(
+                channel, "not_found",
+                f"Channel not found or username is incorrect: {e}",
+                "check_username",
+            )
 
 
 # ── Auth setup ───────────────────────────────────────────────────────────────

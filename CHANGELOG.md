@@ -1,3 +1,10 @@
+## [0.7.1] - 2026-02-28
+
+### Improved
+- Channel error handling: both Pyrogram and Telethon backends now catch `ChannelPrivate`, `ChannelBanned`, `ChatForbidden`, `ChatRestricted`, `UserBannedInChannel`, `InviteHashExpired`, and more
+- Errors return structured JSON with `error_type` (access_denied, banned, not_found, invite_expired, flood_wait) and `action` field for agent automation
+- `SKILL.md`: updated Error Handling section with error_type/action reference table
+
 ## [0.7.0] - 2026-02-28
 
 ### Added

@@ -271,12 +271,24 @@ Store tracked channels in `TOOLS.md`:
 
 ## Error Handling
 
+Errors include an `error_type` and `action` field to help agents decide what to do automatically.
+
+### Channel Errors
+
+| `error_type` | Meaning | `action` |
+|--------------|---------|----------|
+| `access_denied` | Channel is private, you were kicked, or access is restricted | `remove_from_list_or_rejoin` — ask user if they still have access; if not, remove the channel |
+| `banned` | You are banned from this channel | `remove_from_list` — remove the channel, tell the user |
+| `not_found` | Channel doesn't exist or username is wrong | `check_username` — verify the @username with the user |
+| `invite_expired` | Invite link is expired or invalid | `request_new_invite` — ask user for a new invite link |
+| `flood_wait` | Telegram rate limit | `wait_Ns` — wait N seconds, then retry |
+
+### System Errors
+
 | Error | Action |
 |-------|--------|
 | `Session file not found` | Run `tg-reader-check` — use the `suggestion` from output |
 | `Missing credentials` | Guide user through Setup (Step 1-2 above) |
-| `FloodWait` | Wait N seconds, then retry |
-| `ChannelInvalid` | Channel doesn't exist or user not subscribed |
 | `tg-reader: command not found` | Use `python3 -m tg_reader_unified` instead |
 | `AUTH_KEY_UNREGISTERED` | Session expired — delete and re-auth (see below) |
 
