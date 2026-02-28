@@ -23,6 +23,8 @@ clawhub list                         # reads .clawhub/lock.json
 
 ## Key conventions
 
+- **Language:** All code comments, CHANGELOG entries, and commit messages must be in **English**
+- **CHANGELOG style:** Lead with a user-friendly description (what changed and why it matters). Technical details (function names, error types, etc.) are allowed after the plain-language summary.
 - `SKILL.md` frontmatter `metadata` must be a **single-line JSON** with the `openclaw` namespace:
   ```
   metadata: {"openclaw": {"requires": {"bins": [...], "env": [...]}, "primaryEnv": "..."}}

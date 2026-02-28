@@ -167,73 +167,69 @@ def parse_since(since: str) -> datetime:
         raise ValueError(f"Cannot parse --since value: {since!r}. Use '24h', '7d', or 'YYYY-MM-DD'.")
 
 
-async def fetch_messages(channel: str, since: datetime, limit: int, include_media: bool,
-                         config_file=None, session_file=None):
-    api_id, api_hash, session_name = get_config(config_file, session_file)
-    _validate_session(session_name)
-
+async def _fetch_channel(app, channel: str, since: datetime, limit: int, include_media: bool):
+    """Fetch messages from a single channel using an existing Client session."""
     messages = []
-    async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
-        try:
-            async for msg in app.get_chat_history(channel, limit=limit):
-                msg_date = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
-                if msg_date < since:
-                    break
-                entry = {
-                    "id": msg.id,
-                    "date": msg_date.isoformat(),
-                    "text": msg.text or msg.caption or "",
-                    "views": msg.views,
-                    "forwards": msg.forwards,
-                    "link": f"https://t.me/{channel.lstrip('@')}/{msg.id}",
-                }
-                if include_media and msg.media:
-                    entry["media_type"] = str(msg.media)
-                messages.append(entry)
-        except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
-            return _channel_error(
-                channel, "access_denied",
-                f"Channel is private or access denied: {e}",
-                "remove_from_list_or_rejoin",
-            )
-        except (ChannelBanned, UserBannedInChannel) as e:
-            return _channel_error(
-                channel, "banned",
-                f"Banned from channel: {e}",
-                "remove_from_list",
-            )
-        except (ChannelInvalid, ChatInvalid, PeerIdInvalid, UsernameNotOccupied) as e:
-            return _channel_error(
-                channel, "not_found",
-                f"Channel not found or username is incorrect: {e}",
-                "check_username",
-            )
-        except KeyError as e:
-            # Pyrogram raises KeyError from resolve_peer / get_peer_by_username
-            # when the username doesn't exist in Telegram's database
-            return _channel_error(
-                channel, "not_found",
-                f"Username not found: {e}",
-                "check_username",
-            )
-        except (InviteHashExpired, InviteHashInvalid) as e:
-            return _channel_error(
-                channel, "invite_expired",
-                f"Invite link expired or invalid: {e}",
-                "request_new_invite",
-            )
-        except FloodWait as e:
-            return _channel_error(
-                channel, "flood_wait",
-                f"Rate limited: retry after {e.value}s",
-                f"wait_{e.value}s",
-            )
-        except Exception as e:
-            return _channel_error(
-                channel, "unexpected",
-                f"Unexpected error: {e}",
-                "report_to_user",
-            )
+    try:
+        async for msg in app.get_chat_history(channel, limit=limit):
+            msg_date = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
+            if msg_date < since:
+                break
+            entry = {
+                "id": msg.id,
+                "date": msg_date.isoformat(),
+                "text": msg.text or msg.caption or "",
+                "views": msg.views,
+                "forwards": msg.forwards,
+                "link": f"https://t.me/{channel.lstrip('@')}/{msg.id}",
+            }
+            if include_media and msg.media:
+                entry["media_type"] = str(msg.media)
+            messages.append(entry)
+    except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
+        return _channel_error(
+            channel, "access_denied",
+            f"Channel is private or access denied: {e}",
+            "remove_from_list_or_rejoin",
+        )
+    except (ChannelBanned, UserBannedInChannel) as e:
+        return _channel_error(
+            channel, "banned",
+            f"Banned from channel: {e}",
+            "remove_from_list",
+        )
+    except (ChannelInvalid, ChatInvalid, PeerIdInvalid, UsernameNotOccupied) as e:
+        return _channel_error(
+            channel, "not_found",
+            f"Channel not found or username is incorrect: {e}",
+            "check_username",
+        )
+    except KeyError as e:
+        # Pyrogram raises KeyError from resolve_peer / get_peer_by_username
+        # when the username doesn't exist in Telegram's database
+        return _channel_error(
+            channel, "not_found",
+            f"Username not found: {e}",
+            "check_username",
+        )
+    except (InviteHashExpired, InviteHashInvalid) as e:
+        return _channel_error(
+            channel, "invite_expired",
+            f"Invite link expired or invalid: {e}",
+            "request_new_invite",
+        )
+    except FloodWait as e:
+        return _channel_error(
+            channel, "flood_wait",
+            f"Rate limited: retry after {e.value}s",
+            f"wait_{e.value}s",
+        )
+    except Exception as e:
+        return _channel_error(
+            channel, "unexpected",
+            f"Unexpected error: {e}",
+            "report_to_user",
+        )
 
     return {
         "channel": channel,
@@ -244,12 +240,50 @@ async def fetch_messages(channel: str, since: datetime, limit: int, include_medi
     }
 
 
-async def fetch_multiple(channels: list, since: datetime, limit: int, include_media: bool,
+_FLOOD_WAIT_MAX = 60  # auto-retry only if wait is <= this many seconds
+
+
+async def fetch_messages(channel: str, since: datetime, limit: int, include_media: bool,
                          config_file=None, session_file=None):
-    tasks = [fetch_messages(ch, since, limit, include_media, config_file, session_file)
-             for ch in channels]
-    results = await asyncio.gather(*tasks)
-    return list(results)
+    api_id, api_hash, session_name = get_config(config_file, session_file)
+    _validate_session(session_name)
+    async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
+        return await _fetch_channel(app, channel, since, limit, include_media)
+
+
+async def fetch_multiple(channels: list, since: datetime, limit: int, include_media: bool,
+                         config_file=None, session_file=None, delay: float = 10):
+    """Fetch messages from multiple channels sequentially with delays.
+
+    Channels are fetched one at a time to avoid Telegram FloodWait.
+    If a FloodWait <= 60s is hit, the request is retried once automatically.
+    """
+    api_id, api_hash, session_name = get_config(config_file, session_file)
+    _validate_session(session_name)
+
+    results = []
+    async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
+        for i, channel in enumerate(channels):
+            result = await _fetch_channel(app, channel, since, limit, include_media)
+
+            # Auto-retry on FloodWait if wait is reasonable
+            if (isinstance(result, dict) and result.get("error_type") == "flood_wait"):
+                wait_action = result.get("action", "")
+                try:
+                    wait_seconds = int(wait_action.replace("wait_", "").replace("s", ""))
+                except (ValueError, AttributeError):
+                    wait_seconds = 0
+                if 0 < wait_seconds <= _FLOOD_WAIT_MAX:
+                    await asyncio.sleep(wait_seconds)
+                    result = await _fetch_channel(app, channel, since, limit, include_media)
+
+            results.append(result)
+
+            # Delay between channels (skip after the last one)
+            if i < len(channels) - 1:
+                await asyncio.sleep(delay)
+
+    return results
 
 
 # ── Channel info ─────────────────────────────────────────────────────────────
@@ -333,6 +367,8 @@ def main():
     fetch_p.add_argument("--since", default="24h", help="Time window: 24h, 7d, 2w, or YYYY-MM-DD")
     fetch_p.add_argument("--limit", type=int, default=100, help="Max posts per channel (default 100)")
     fetch_p.add_argument("--media", action="store_true", help="Include media type info")
+    fetch_p.add_argument("--delay", type=float, default=10,
+                        help="Seconds to wait between channels (default 10)")
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
 
     # info
@@ -365,7 +401,8 @@ def main():
         if len(args.channels) == 1:
             result = asyncio.run(fetch_messages(args.channels[0], since_dt, args.limit, args.media, cf, sf))
         else:
-            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.media, cf, sf))
+            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.media, cf, sf,
+                                                delay=args.delay))
 
         if args.format == "json":
             print(json.dumps(result, ensure_ascii=False, indent=2))

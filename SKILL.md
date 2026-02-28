@@ -75,8 +75,11 @@ tg-reader fetch @channel_name --since 24h
 # Last 7 days, up to 200 posts
 tg-reader fetch @channel_name --since 7d --limit 200
 
-# Multiple channels at once
+# Multiple channels (fetched sequentially with 10s delay between each)
 tg-reader fetch @channel1 @channel2 @channel3 --since 24h
+
+# Custom delay between channels (seconds)
+tg-reader fetch @channel1 @channel2 @channel3 --since 24h --delay 5
 
 # Human-readable output
 tg-reader fetch @channel_name --since 24h --format text
@@ -281,7 +284,7 @@ Errors include an `error_type` and `action` field to help agents decide what to 
 | `banned` | You are banned from this channel | `remove_from_list` — remove the channel, tell the user |
 | `not_found` | Channel doesn't exist or username is wrong | `check_username` — verify the @username with the user |
 | `invite_expired` | Invite link is expired or invalid | `request_new_invite` — ask user for a new invite link |
-| `flood_wait` | Telegram rate limit | `wait_Ns` — wait N seconds, then retry |
+| `flood_wait` | Telegram rate limit | `wait_Ns` — waits ≤ 60 s are retried automatically; longer waits return this error |
 
 ### System Errors
 

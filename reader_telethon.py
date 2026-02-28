@@ -243,26 +243,52 @@ async def fetch_messages(client: TelegramClient, channel: str, since: datetime, 
     }
 
 
+_FLOOD_WAIT_MAX = 60  # auto-retry only if wait is <= this many seconds
+
+
 async def fetch_multiple(channels: list, since: datetime, limit: int, include_media: bool,
-                         config_file=None, session_file=None):
-    """Fetch messages from multiple channels."""
+                         config_file=None, session_file=None, delay: float = 10):
+    """Fetch messages from multiple channels sequentially with delays.
+
+    Channels are fetched one at a time to avoid Telegram FloodWait.
+    If a FloodWait <= 60s is hit, the request is retried once automatically.
+    """
     api_id, api_hash, session_name = get_config(config_file, session_file)
     _validate_session(session_name)
 
     client = TelegramClient(session_name, api_id, api_hash)
     await client.connect()
-    
+
     if not await client.is_user_authorized():
         print(json.dumps({"error": "Not authorized. Please run: tg-reader-telethon auth"}))
         await client.disconnect()
         sys.exit(1)
-    
+
+    results = []
     try:
-        tasks = [fetch_messages(client, ch, since, limit, include_media) for ch in channels]
-        results = await asyncio.gather(*tasks)
-        return list(results)
+        for i, channel in enumerate(channels):
+            result = await fetch_messages(client, channel, since, limit, include_media)
+
+            # Auto-retry on FloodWait if wait is reasonable
+            if (isinstance(result, dict) and result.get("error_type") == "flood_wait"):
+                wait_action = result.get("action", "")
+                try:
+                    wait_seconds = int(wait_action.replace("wait_", "").replace("s", ""))
+                except (ValueError, AttributeError):
+                    wait_seconds = 0
+                if 0 < wait_seconds <= _FLOOD_WAIT_MAX:
+                    await asyncio.sleep(wait_seconds)
+                    result = await fetch_messages(client, channel, since, limit, include_media)
+
+            results.append(result)
+
+            # Delay between channels (skip after the last one)
+            if i < len(channels) - 1:
+                await asyncio.sleep(delay)
     finally:
         await client.disconnect()
+
+    return results
 
 
 async def fetch_single(channel: str, since: datetime, limit: int, include_media: bool,
@@ -335,6 +361,8 @@ def main():
     fetch_p.add_argument("--since", default="24h", help="Time window: 24h, 7d, 2w, or YYYY-MM-DD")
     fetch_p.add_argument("--limit", type=int, default=100, help="Max posts per channel (default 100)")
     fetch_p.add_argument("--media", action="store_true", help="Include media type info")
+    fetch_p.add_argument("--delay", type=float, default=10,
+                        help="Seconds to wait between channels (default 10)")
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
 
     # auth
@@ -358,7 +386,8 @@ def main():
         if len(args.channels) == 1:
             result = asyncio.run(fetch_single(args.channels[0], since_dt, args.limit, args.media, cf, sf))
         else:
-            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.media, cf, sf))
+            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.media, cf, sf,
+                                                delay=args.delay))
 
         if args.format == "json":
             print(json.dumps(result, ensure_ascii=False, indent=2))

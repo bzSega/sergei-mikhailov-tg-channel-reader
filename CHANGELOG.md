@@ -2,6 +2,20 @@
 
 ---
 
+## [0.8.0] - 2026-02-28
+
+**Multiple channels no longer cause Telegram to block your account.** Previously, fetching several channels at once sent all requests in parallel — Telegram treated this as flood and rate-limited the session. Now channels are fetched one at a time with a 10-second pause between each, and short rate limits (≤ 60 s) are waited out automatically.
+
+### Changed
+- `fetch_multiple` in both Pyrogram and Telethon backends now processes channels **sequentially** instead of in parallel (`asyncio.gather` removed)
+- Pyrogram multi-channel fetch uses a **single session** for all channels (previously each channel opened its own session)
+- FloodWait auto-retry: if Telegram says "wait N seconds" and N ≤ 60, the skill sleeps and retries once automatically; longer waits still return an error
+
+### Added
+- `--delay` flag for `fetch` command — configurable pause between channels (default 10 seconds)
+
+---
+
 ## [0.7.2] - 2026-02-28
 
 **Fixed: channels with non-existent usernames no longer crash the skill.** Pyrogram throws a `KeyError` internally when a username like `@disruptors_official` doesn't exist — this wasn't caught before. Now any unrecognized error is handled gracefully and returns a clear JSON response instead of a stack trace.
