@@ -2,6 +2,20 @@
 
 ---
 
+## [0.8.3] - 2026-02-28
+
+**Posts with images and videos are no longer invisible.** Previously, if a channel post contained a photo or video, the skill could return an empty text field — and the agent would skip it during summarization. Now every message includes `has_media` and `media_type` fields, and the text caption is always captured correctly. Images and videos themselves are not analyzed (no OCR/vision), but their accompanying text is fully preserved.
+
+### Fixed
+- Pyrogram: made text extraction from media posts more explicit — `msg.text` and `msg.caption` are now checked separately instead of relying on Python `or` chain
+- Both backends: `has_media` (boolean) and `media_type` (string) are now **always** included in the message output — media info is part of every response by default
+- `SKILL.md`: removed instruction to "filter out media-only posts" — agents should never skip posts with media as they often contain important text in captions
+
+### Changed
+- Replaced `--media` flag with `--text-only` — by default all posts are included (media + text); use `--text-only` to exclude posts with no text (e.g. standalone images/videos without captions)
+
+---
+
 ## [0.8.2] - 2026-02-28
 
 **Security hardening after registry review.** The debug script now asks for confirmation before deleting session files, and insecure session-copying instructions have been removed from the docs.

@@ -81,6 +81,9 @@ tg-reader fetch @channel1 @channel2 @channel3 --since 24h
 # Custom delay between channels (seconds)
 tg-reader fetch @channel1 @channel2 @channel3 --since 24h --delay 5
 
+# Skip posts without text (media-only, no caption)
+tg-reader fetch @channel_name --since 24h --text-only
+
 # Human-readable output
 tg-reader fetch @channel_name --since 24h --format text
 
@@ -245,7 +248,9 @@ Both flags work with all subcommands and both backends.
       "text": "Post content...",
       "views": 5200,
       "forwards": 34,
-      "link": "https://t.me/channel_name/1234"
+      "link": "https://t.me/channel_name/1234",
+      "has_media": true,
+      "media_type": "MessageMediaType.PHOTO"
     }
   ]
 }
@@ -256,9 +261,10 @@ Both flags work with all subcommands and both backends.
 ## After Fetching
 
 1. Parse the JSON output
-2. Filter out empty/media-only posts if text summary is requested
-3. Summarize key themes, top posts by views, notable links
-4. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
+2. Posts with images/videos have `has_media: true` and a `media_type` field. Their text is in the `text` field (from the caption). **Do not skip posts just because they have media** — they often contain important text.
+3. Images and videos are **not analyzed** (no OCR/vision) — only the text/caption is returned.
+4. Summarize key themes, top posts by views, notable links
+5. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
 
 ### Saving Channel List
 

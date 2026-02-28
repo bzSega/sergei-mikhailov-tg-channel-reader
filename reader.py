@@ -167,7 +167,7 @@ def parse_since(since: str) -> datetime:
         raise ValueError(f"Cannot parse --since value: {since!r}. Use '24h', '7d', or 'YYYY-MM-DD'.")
 
 
-async def _fetch_channel(app, channel: str, since: datetime, limit: int, include_media: bool):
+async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_only: bool):
     """Fetch messages from a single channel using an existing Client session."""
     messages = []
     try:
@@ -175,15 +175,27 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, include
             msg_date = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
             if msg_date < since:
                 break
+            # Pyrogram: text for plain messages, caption for media messages
+            text = ""
+            if msg.text:
+                text = msg.text
+            elif msg.caption:
+                text = msg.caption
+
+            # --text-only: skip posts that have no text at all
+            if text_only and not text:
+                continue
+
             entry = {
                 "id": msg.id,
                 "date": msg_date.isoformat(),
-                "text": msg.text or msg.caption or "",
+                "text": text,
                 "views": msg.views,
                 "forwards": msg.forwards,
                 "link": f"https://t.me/{channel.lstrip('@')}/{msg.id}",
+                "has_media": msg.media is not None,
             }
-            if include_media and msg.media:
+            if msg.media:
                 entry["media_type"] = str(msg.media)
             messages.append(entry)
     except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
@@ -243,15 +255,15 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, include
 _FLOOD_WAIT_MAX = 60  # auto-retry only if wait is <= this many seconds
 
 
-async def fetch_messages(channel: str, since: datetime, limit: int, include_media: bool,
+async def fetch_messages(channel: str, since: datetime, limit: int, text_only: bool,
                          config_file=None, session_file=None):
     api_id, api_hash, session_name = get_config(config_file, session_file)
     _validate_session(session_name)
     async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
-        return await _fetch_channel(app, channel, since, limit, include_media)
+        return await _fetch_channel(app, channel, since, limit, text_only)
 
 
-async def fetch_multiple(channels: list, since: datetime, limit: int, include_media: bool,
+async def fetch_multiple(channels: list, since: datetime, limit: int, text_only: bool,
                          config_file=None, session_file=None, delay: float = 10):
     """Fetch messages from multiple channels sequentially with delays.
 
@@ -264,7 +276,7 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, include_me
     results = []
     async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
         for i, channel in enumerate(channels):
-            result = await _fetch_channel(app, channel, since, limit, include_media)
+            result = await _fetch_channel(app, channel, since, limit, text_only)
 
             # Auto-retry on FloodWait if wait is reasonable
             if (isinstance(result, dict) and result.get("error_type") == "flood_wait"):
@@ -275,7 +287,7 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, include_me
                     wait_seconds = 0
                 if 0 < wait_seconds <= _FLOOD_WAIT_MAX:
                     await asyncio.sleep(wait_seconds)
-                    result = await _fetch_channel(app, channel, since, limit, include_media)
+                    result = await _fetch_channel(app, channel, since, limit, text_only)
 
             results.append(result)
 
@@ -366,7 +378,8 @@ def main():
     fetch_p.add_argument("channels", nargs="+", help="Channel usernames e.g. @durov")
     fetch_p.add_argument("--since", default="24h", help="Time window: 24h, 7d, 2w, or YYYY-MM-DD")
     fetch_p.add_argument("--limit", type=int, default=100, help="Max posts per channel (default 100)")
-    fetch_p.add_argument("--media", action="store_true", help="Include media type info")
+    fetch_p.add_argument("--text-only", action="store_true",
+                        help="Skip posts that have no text (media-only without caption)")
     fetch_p.add_argument("--delay", type=float, default=10,
                         help="Seconds to wait between channels (default 10)")
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
@@ -399,9 +412,9 @@ def main():
             sys.exit(1)
 
         if len(args.channels) == 1:
-            result = asyncio.run(fetch_messages(args.channels[0], since_dt, args.limit, args.media, cf, sf))
+            result = asyncio.run(fetch_messages(args.channels[0], since_dt, args.limit, args.text_only, cf, sf))
         else:
-            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.media, cf, sf,
+            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.text_only, cf, sf,
                                                 delay=args.delay))
 
         if args.format == "json":
