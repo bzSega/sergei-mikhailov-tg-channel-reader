@@ -70,22 +70,6 @@ python3 -m reader_telethon auth
 python3 -m reader_telethon fetch @durov --since 24h
 ```
 
-## Copying Session from Server
-
-If you have a working Telethon session on a server:
-
-```bash
-# Find the session file on server
-ssh user@server "ls -la ~/.telethon-reader.session*"
-
-# Copy to local machine
-scp user@server:~/.telethon-reader.session ~/.telethon-reader.session
-scp user@server:~/.telethon-reader.session-journal ~/.telethon-reader.session-journal
-
-# Test immediately (no auth needed)
-tg-reader-telethon fetch @durov --since 24h
-```
-
 ## Troubleshooting
 
 ### Code not arriving

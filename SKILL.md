@@ -310,6 +310,8 @@ Use the verbose debug script for full MTProto-level logs:
 python3 debug_auth.py
 ```
 
+> **Warning:** `debug_auth.py` deletes existing session files before re-authenticating. It will ask for confirmation first.
+
 ---
 
 ## Security

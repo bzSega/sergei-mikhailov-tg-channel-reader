@@ -2,6 +2,19 @@
 
 ---
 
+## [0.8.2] - 2026-02-28
+
+**Security hardening after registry review.** The debug script now asks for confirmation before deleting session files, and insecure session-copying instructions have been removed from the docs.
+
+### Fixed
+- `debug_auth.py`: added confirmation prompt before deleting `.session` and `.session-journal` files — no more silent deletion
+- `SKILL.md`: documented that `debug_auth.py` deletes session files (with confirmation)
+
+### Removed
+- Removed `scp` session-copying instructions from `README_TELETHON.md` and `TESTING_GUIDE.md` — copying session files between machines is insecure and grants full Telegram account access
+
+---
+
 ## [0.8.0] - 2026-02-28
 
 **Multiple channels no longer cause Telegram to block your account.** Previously, fetching several channels at once sent all requests in parallel — Telegram treated this as flood and rate-limited the session. Now channels are fetched one at a time with a 10-second pause between each, and short rate limits (≤ 60 s) are waited out automatically.

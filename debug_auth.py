@@ -46,11 +46,19 @@ def get_config():
 async def main():
     api_id, api_hash, session_name = get_config()
 
-    # Delete any stale session first
-    for ext in (".session", ".session-journal"):
-        p = Path(session_name + ext)
-        if p.exists():
-            print(f"Removing stale session: {p}")
+    # Warn before deleting existing session files
+    existing = [Path(session_name + ext) for ext in (".session", ".session-journal")
+                if Path(session_name + ext).exists()]
+    if existing:
+        print("\n⚠️  The following session files will be DELETED for a clean re-auth:")
+        for p in existing:
+            print(f"   {p}")
+        answer = input("\nProceed? [y/N] ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("Aborted.")
+            return
+        for p in existing:
+            print(f"Removing: {p}")
             p.unlink()
 
     print("\n--- Connecting to Telegram ---\n")

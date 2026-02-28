@@ -91,18 +91,6 @@ python3 -m reader_telethon auth
 python3 -m reader_telethon fetch @durov --since 24h
 ```
 
-## Copying Session from Server
-
-If you already have a working Telethon session on another machine:
-
-```bash
-# Copy from remote server to local Mac
-scp user@server:~/.telethon-reader.session ~/.telethon-reader.session
-scp user@server:~/.telethon-reader.session-journal ~/.telethon-reader.session-journal
-```
-
-**Important:** Make sure to use the same `TG_API_ID` and `TG_API_HASH` on both machines.
-
 ## Differences from Pyrogram Version
 
 | Feature | Pyrogram | Telethon |
