@@ -167,10 +167,59 @@ def parse_since(since: str) -> datetime:
         raise ValueError(f"Cannot parse --since value: {since!r}. Use '24h', '7d', or 'YYYY-MM-DD'.")
 
 
-async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_only: bool):
+async def _check_discussion_group(app, channel: str) -> bool:
+    """Check whether the channel has a linked discussion group (comments)."""
+    try:
+        chat = await app.get_chat(channel)
+        return chat.linked_chat is not None
+    except Exception:
+        return False
+
+
+async def _fetch_comments(app, channel: str, message_id: int, comment_limit: int) -> list:
+    """Fetch discussion replies (comments) for a single channel post.
+
+    Returns a list of comment dicts. Skips media-only comments (no text).
+    Re-raises FloodWait so the caller can handle retries.
+    """
+    comments = []
+    try:
+        async for reply in app.get_discussion_replies(channel, message_id, limit=comment_limit):
+            text = ""
+            if reply.text:
+                text = reply.text
+            elif reply.caption:
+                text = reply.caption
+            if not text:
+                continue
+            from_user = None
+            if reply.from_user:
+                from_user = reply.from_user.username or str(reply.from_user.id)
+            reply_date = reply.date if reply.date.tzinfo else reply.date.replace(tzinfo=timezone.utc)
+            comments.append({
+                "id": reply.id,
+                "date": reply_date.isoformat(),
+                "text": text,
+                "from_user": from_user,
+            })
+    except FloodWait:
+        raise  # let caller handle retry
+    except Exception:
+        pass  # comments unavailable for this post
+    return comments
+
+
+async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_only: bool,
+                         comments: bool = False, comment_limit: int = 10, comment_delay: float = 3):
     """Fetch messages from a single channel using an existing Client session."""
+    # Check discussion group availability once (only when comments requested)
+    has_discussion = False
+    if comments:
+        has_discussion = await _check_discussion_group(app, channel)
+
     messages = []
     try:
+        msg_index = 0
         async for msg in app.get_chat_history(channel, limit=limit):
             msg_date = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
             if msg_date < since:
@@ -197,7 +246,32 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_on
             }
             if msg.media:
                 entry["media_type"] = str(msg.media)
+
+            # Fetch comments for this post
+            if comments and has_discussion:
+                if msg_index > 0:
+                    await asyncio.sleep(comment_delay)
+                try:
+                    post_comments = await _fetch_comments(app, channel, msg.id, comment_limit)
+                    entry["comment_count"] = len(post_comments)
+                    entry["comments"] = post_comments
+                except FloodWait as e:
+                    if e.value <= _FLOOD_WAIT_MAX:
+                        await asyncio.sleep(e.value)
+                        try:
+                            post_comments = await _fetch_comments(app, channel, msg.id, comment_limit)
+                            entry["comment_count"] = len(post_comments)
+                            entry["comments"] = post_comments
+                        except Exception:
+                            entry["comment_count"] = 0
+                            entry["comments"] = []
+                    else:
+                        entry["comment_count"] = 0
+                        entry["comments"] = []
+                        entry["comments_error"] = f"Rate limited: retry after {e.value}s"
+
             messages.append(entry)
+            msg_index += 1
     except (ChannelPrivate, ChatForbidden, ChatRestricted) as e:
         return _channel_error(
             channel, "access_denied",
@@ -243,24 +317,31 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_on
             "report_to_user",
         )
 
-    return {
+    result = {
         "channel": channel,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "since": since.isoformat(),
         "count": len(messages),
         "messages": messages,
     }
+    if comments:
+        result["comments_enabled"] = True
+        result["comments_available"] = has_discussion
+    return result
 
 
 _FLOOD_WAIT_MAX = 60  # auto-retry only if wait is <= this many seconds
 
 
 async def fetch_messages(channel: str, since: datetime, limit: int, text_only: bool,
-                         config_file=None, session_file=None):
+                         config_file=None, session_file=None,
+                         comments: bool = False, comment_limit: int = 10, comment_delay: float = 3):
     api_id, api_hash, session_name = get_config(config_file, session_file)
     _validate_session(session_name)
     async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
-        return await _fetch_channel(app, channel, since, limit, text_only)
+        return await _fetch_channel(app, channel, since, limit, text_only,
+                                    comments=comments, comment_limit=comment_limit,
+                                    comment_delay=comment_delay)
 
 
 async def fetch_multiple(channels: list, since: datetime, limit: int, text_only: bool,
@@ -382,6 +463,12 @@ def main():
                         help="Skip posts that have no text (media-only without caption)")
     fetch_p.add_argument("--delay", type=float, default=10,
                         help="Seconds to wait between channels (default 10)")
+    fetch_p.add_argument("--comments", action="store_true",
+                        help="Fetch comments for each post (single channel only)")
+    fetch_p.add_argument("--comment-limit", type=int, default=10,
+                        help="Max comments per post (default 10)")
+    fetch_p.add_argument("--comment-delay", type=float, default=3,
+                        help="Seconds between comment fetches per post (default 3)")
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
 
     # info
@@ -411,10 +498,27 @@ def main():
             print(json.dumps({"error": str(e)}))
             sys.exit(1)
 
+        # Validate --comments constraints
+        if args.comments:
+            if len(args.channels) > 1:
+                print(json.dumps({
+                    "error": "--comments can only be used with a single channel",
+                    "action": "remove_extra_channels_or_drop_comments",
+                }))
+                sys.exit(1)
+
+        # Lower default limit when fetching comments (token economy)
+        limit = args.limit
+        if args.comments and limit == 100:
+            limit = 30
+
         if len(args.channels) == 1:
-            result = asyncio.run(fetch_messages(args.channels[0], since_dt, args.limit, args.text_only, cf, sf))
+            result = asyncio.run(fetch_messages(
+                args.channels[0], since_dt, limit, args.text_only, cf, sf,
+                comments=args.comments, comment_limit=args.comment_limit,
+                comment_delay=args.comment_delay))
         else:
-            result = asyncio.run(fetch_multiple(args.channels, since_dt, args.limit, args.text_only, cf, sf,
+            result = asyncio.run(fetch_multiple(args.channels, since_dt, limit, args.text_only, cf, sf,
                                                 delay=args.delay))
 
         if args.format == "json":
@@ -430,6 +534,11 @@ def main():
                 for msg in ch_result["messages"]:
                     print(f"\n[{msg['date']}] {msg['link']}")
                     print(msg["text"][:500] + ("..." if len(msg["text"]) > 500 else ""))
+                    if "comments" in msg and msg["comments"]:
+                        print(f"  [{msg['comment_count']} comments]")
+                        for c in msg["comments"]:
+                            user = c.get("from_user") or "anonymous"
+                            print(f"    @{user}: {c['text'][:200]}")
 
 
 if __name__ == "__main__":

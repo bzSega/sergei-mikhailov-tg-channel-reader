@@ -81,6 +81,12 @@ tg-reader fetch @channel1 @channel2 @channel3 --since 24h
 # Custom delay between channels (seconds)
 tg-reader fetch @channel1 @channel2 @channel3 --since 24h --delay 5
 
+# Fetch posts with comments (single channel only, limit auto-drops to 30)
+tg-reader fetch @channel_name --since 7d --comments
+
+# More comments per post, custom delay between posts
+tg-reader fetch @channel_name --since 24h --comments --comment-limit 20 --comment-delay 5
+
 # Skip posts without text (media-only, no caption)
 tg-reader fetch @channel_name --since 24h --text-only
 
@@ -256,6 +262,42 @@ Both flags work with all subcommands and both backends.
 }
 ```
 
+### `fetch` with `--comments`
+
+```json
+{
+  "channel": "@channel_name",
+  "fetched_at": "2026-02-28T10:00:00Z",
+  "since": "2026-02-27T10:00:00Z",
+  "count": 5,
+  "comments_enabled": true,
+  "comments_available": true,
+  "messages": [
+    {
+      "id": 1234,
+      "text": "Post content...",
+      "has_media": false,
+      "comment_count": 2,
+      "comments": [
+        {
+          "id": 5678,
+          "date": "2026-02-28T09:35:00Z",
+          "text": "Great post!",
+          "from_user": "username123"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Notes:**
+- `comments_available: false` — channel has no linked discussion group (no comments possible)
+- `comments_error` on a message — rate limit hit for that post's comments
+- `from_user` may be `null` for anonymous comments
+- Images/videos in comments are **not analyzed** — only text is captured
+- Default post limit drops to 30 when `--comments` is active (override with `--limit`)
+
 ---
 
 ## After Fetching
@@ -264,7 +306,8 @@ Both flags work with all subcommands and both backends.
 2. Posts with images/videos have `has_media: true` and a `media_type` field. Their text is in the `text` field (from the caption). **Do not skip posts just because they have media** — they often contain important text.
 3. Images and videos are **not analyzed** (no OCR/vision) — only the text/caption is returned.
 4. Summarize key themes, top posts by views, notable links
-5. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
+5. If `comments_enabled: true`, analyze comment sentiment and key themes alongside the main posts
+6. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
 
 ### Saving Channel List
 
@@ -291,6 +334,7 @@ Errors include an `error_type` and `action` field to help agents decide what to 
 | `not_found` | Channel doesn't exist or username is wrong | `check_username` — verify the @username with the user |
 | `invite_expired` | Invite link is expired or invalid | `request_new_invite` — ask user for a new invite link |
 | `flood_wait` | Telegram rate limit | `wait_Ns` — waits ≤ 60 s are retried automatically; longer waits return this error |
+| `comments_multi_channel` | `--comments` used with multiple channels | `remove_extra_channels_or_drop_comments` — use one channel at a time |
 
 ### System Errors
 

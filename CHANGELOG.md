@@ -2,6 +2,28 @@
 
 ---
 
+## [0.8.4] - 2026-02-28
+
+**Read what people are saying in the comments.** Add `--comments` to a fetch command and the skill retrieves discussion replies for each channel post — great for sentiment analysis, audience feedback, and topic tracking. Works with both Pyrogram and Telethon backends.
+
+### Added
+- `--comments` flag for `fetch` command — fetches discussion replies (comments) for each post in a single channel
+- `--comment-limit N` — max comments per post (default 10)
+- `--comment-delay N` — seconds between posts when fetching comments (default 3) to avoid rate limits
+- Output includes `comments_enabled`, `comments_available` flags and a `comments` array per message with `id`, `date`, `text`, `from_user`
+- Channels without a linked discussion group return `comments_available: false` instead of an error
+
+### Changed
+- Default `--limit` drops from 100 → 30 when `--comments` is active (token economy — comments produce a lot of output)
+- `--comments` is restricted to a single channel; using it with multiple channels returns an actionable error (`comments_multi_channel`)
+
+### Error handling
+- FloodWait during comment fetch: auto-retry once if ≤ 60 s, otherwise sets `comments_error` on the affected message and continues
+- Media-only comments (no text) are silently skipped
+- Anonymous comments return `from_user: null`
+
+---
+
 ## [0.8.3] - 2026-02-28
 
 **Posts with images and videos are no longer invisible.** Previously, if a channel post contained a photo or video, the skill could return an empty text field — and the agent would skip it during summarization. Now every message includes `has_media` and `media_type` fields, and the text caption is always captured correctly. Images and videos themselves are not analyzed (no OCR/vision), but their accompanying text is fully preserved.
