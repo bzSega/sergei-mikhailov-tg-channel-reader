@@ -31,6 +31,7 @@ _DEVICE: dict = {}
 def _find_session_files() -> list:
     """Find .session files in home directory and current working directory."""
     found = []
+    seen: set = set()
     dirs_checked: set = set()
     for d in [Path.home(), Path.cwd()]:
         d = d.resolve()
@@ -41,6 +42,10 @@ def _find_session_files() -> list:
             for f in d.glob(pattern):
                 if f.name.endswith("-journal"):
                     continue
+                resolved = f.resolve()
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
                 found.append(f)
     found.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return found

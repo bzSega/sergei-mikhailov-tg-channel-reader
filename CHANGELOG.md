@@ -1,3 +1,14 @@
+## [0.7.0] - 2026-02-28
+
+### Added
+- `tg-reader-check` command — offline diagnostic that verifies credentials, session files, and backend availability
+- Outputs structured JSON with `status`, `credentials`, `session`, `backends`, and `problems` fields
+- Stale session detection: warns when config points to an older session while a newer one exists (common after re-auth)
+- Shows `config_session_override` and `default_path` when config overrides the default session — helps spot mismatches
+- Supports `--config-file` and `--session-file` flags (same as reader commands)
+- `SKILL.md`: new "Pre-flight Check" section; agent should run `tg-reader-check` before fetching
+- `_find_session_files()` deduplication fix (Python 3.13+ `glob` matches dotfiles with `*`)
+
 ## [0.6.1] - 2026-02-28
 
 ### Fixed

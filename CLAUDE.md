@@ -36,7 +36,7 @@ clawhub list                         # reads .clawhub/lock.json
 
 **Type:** OpenClaw skill (Python package published to ClawHub registry)
 **Registry slug:** `sergei-mikhailov-tg-channel-reader`
-**Current version:** 0.5.0
+**Current version:** 0.7.0
 **License:** MIT
 
 ### What it does
@@ -52,6 +52,7 @@ Reads posts from Telegram channels via MTProto (official protocol). Supports Pyr
 | `reader.py` | Pyrogram implementation |
 | `reader_telethon.py` | Telethon implementation |
 | `tg_reader_unified.py` | Unified entry point — auto-selects backend |
+| `tg_check.py` | Offline diagnostic script (`tg-reader-check`) |
 | `CHANGELOG.md` | Version history |
 | `DISCLAIMER.md` | Legal disclaimer |
 | `README_TELETHON.md` | Telethon-specific docs |
@@ -63,6 +64,7 @@ Reads posts from Telegram channels via MTProto (official protocol). Supports Pyr
 tg-reader              → tg_reader_unified:main   (auto-selects backend)
 tg-reader-pyrogram     → reader:main              (force Pyrogram)
 tg-reader-telethon     → reader_telethon:main     (force Telethon)
+tg-reader-check        → tg_check:main            (offline diagnostic)
 ```
 
 ### Dependencies
