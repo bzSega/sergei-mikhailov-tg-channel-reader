@@ -1,3 +1,10 @@
+## [0.6.1] - 2026-02-28
+
+### Fixed
+- Session file validation: `fetch` and `info` commands now check that the `.session` file exists before connecting, instead of silently triggering a re-auth prompt
+- When the session file is missing, both Pyrogram and Telethon backends output a structured JSON error with: expected path, list of found `.session` files in `~` and CWD, and a suggested `--session-file` fix
+- `get_config()` now strips `.session` suffix if the user passes a full filename (e.g. `--session-file /path/to/foo.session`), preventing Pyrogram/Telethon from looking for `foo.session.session`
+
 ## [0.6.0] - 2026-02-24
 
 ### Added

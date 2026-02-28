@@ -25,6 +25,57 @@ except ImportError:
 # behaviour doesn't match and it's detected server-side.
 _DEVICE: dict = {}
 
+
+# ── Session helpers ──────────────────────────────────────────────────────────
+
+def _find_session_files() -> list:
+    """Find .session files in home directory and current working directory."""
+    found = []
+    dirs_checked: set = set()
+    for d in [Path.home(), Path.cwd()]:
+        d = d.resolve()
+        if d in dirs_checked:
+            continue
+        dirs_checked.add(d)
+        for pattern in ["*.session", ".*.session"]:
+            for f in d.glob(pattern):
+                if f.name.endswith("-journal"):
+                    continue
+                found.append(f)
+    found.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return found
+
+
+def _validate_session(session_name: str) -> None:
+    """Verify the session file exists; exit with a JSON error and hints if not.
+
+    Both Pyrogram and Telethon store sessions as ``{name}.session``.
+    This check prevents a silent re-auth prompt when the file is missing.
+    """
+    session_file = Path(f"{session_name}.session")
+    if session_file.exists():
+        return
+
+    found = _find_session_files()
+    error: dict = {
+        "error": f"Session file not found: {session_file}",
+        "expected_path": str(session_file),
+        "fix": [
+            "Run 'tg-reader auth' to create a new session",
+            "Or set TG_SESSION=/path/to/existing-session (without .session suffix)",
+            "Or add {\"session\": \"/path/to/session\"} to ~/.tg-reader.json",
+            "Or pass --session-file /path/to/session (without .session suffix)",
+        ],
+    }
+    if found:
+        error["found_sessions"] = [str(f) for f in found[:10]]
+        suggestion = str(found[0]).removesuffix(".session")
+        error["suggestion"] = f"Likely fix: use --session-file {suggestion}"
+
+    print(json.dumps(error, indent=2))
+    sys.exit(1)
+
+
 # ── Config ──────────────────────────────────────────────────────────────────
 
 def get_config(config_file=None, session_file=None):
@@ -59,6 +110,10 @@ def get_config(config_file=None, session_file=None):
         }))
         sys.exit(1)
 
+    # Normalize: strip .session suffix if user passed full filename
+    if session_name.endswith(".session"):
+        session_name = session_name[: -len(".session")]
+
     return int(api_id), api_hash, session_name
 
 
@@ -87,6 +142,7 @@ def parse_since(since: str) -> datetime:
 async def fetch_messages(channel: str, since: datetime, limit: int, include_media: bool,
                          config_file=None, session_file=None):
     api_id, api_hash, session_name = get_config(config_file, session_file)
+    _validate_session(session_name)
 
     messages = []
     async with Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE) as app:
@@ -132,6 +188,7 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, include_me
 
 async def fetch_info(channel: str, config_file=None, session_file=None):
     api_id, api_hash, session_name = get_config(config_file, session_file)
+    _validate_session(session_name)
     async with Client(session_name, api_id=api_id, api_hash=api_hash) as app:
         try:
             chat = await app.get_chat(channel)
