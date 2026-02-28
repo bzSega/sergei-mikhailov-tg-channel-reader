@@ -2,6 +2,16 @@
 
 ---
 
+## [0.7.2] - 2026-02-28
+
+**Fixed: channels with non-existent usernames no longer crash the skill.** Pyrogram throws a `KeyError` internally when a username like `@disruptors_official` doesn't exist — this wasn't caught before. Now any unrecognized error is handled gracefully and returns a clear JSON response instead of a stack trace.
+
+### Fixed
+- Pyrogram `fetch_messages()` and `fetch_info()` now catch `KeyError` from `resolve_peer` / `get_peer_by_username` — maps to `error_type: "not_found"`
+- Added generic `except Exception` fallback to both functions (Telethon already had this) — maps to `error_type: "unexpected"` with `action: "report_to_user"`
+
+---
+
 ## [0.7.1] - 2026-02-28
 
 **The skill no longer crashes when a channel is private or you've been banned.** Previously, a single channel error would break the whole request. Now the agent gets a clear JSON response with the error type and a suggested next step — remove the channel, wait, or ask you for a new invite link.

@@ -208,6 +208,14 @@ async def fetch_messages(channel: str, since: datetime, limit: int, include_medi
                 f"Channel not found or username is incorrect: {e}",
                 "check_username",
             )
+        except KeyError as e:
+            # Pyrogram raises KeyError from resolve_peer / get_peer_by_username
+            # when the username doesn't exist in Telegram's database
+            return _channel_error(
+                channel, "not_found",
+                f"Username not found: {e}",
+                "check_username",
+            )
         except (InviteHashExpired, InviteHashInvalid) as e:
             return _channel_error(
                 channel, "invite_expired",
@@ -219,6 +227,12 @@ async def fetch_messages(channel: str, since: datetime, limit: int, include_medi
                 channel, "flood_wait",
                 f"Rate limited: retry after {e.value}s",
                 f"wait_{e.value}s",
+            )
+        except Exception as e:
+            return _channel_error(
+                channel, "unexpected",
+                f"Unexpected error: {e}",
+                "report_to_user",
             )
 
     return {
@@ -271,6 +285,18 @@ async def fetch_info(channel: str, config_file=None, session_file=None):
                 channel, "not_found",
                 f"Channel not found or username is incorrect: {e}",
                 "check_username",
+            )
+        except KeyError as e:
+            return _channel_error(
+                channel, "not_found",
+                f"Username not found: {e}",
+                "check_username",
+            )
+        except Exception as e:
+            return _channel_error(
+                channel, "unexpected",
+                f"Unexpected error: {e}",
+                "report_to_user",
             )
 
 
