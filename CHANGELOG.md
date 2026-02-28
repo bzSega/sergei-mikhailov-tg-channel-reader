@@ -4,7 +4,7 @@
 
 ## [0.7.1] - 2026-02-28
 
-**Теперь скилл не падает, если канал закрыт или вас забанили.** Раньше одна ошибка ломала весь запрос. Теперь агент получает понятный ответ с типом ошибки и подсказкой, что делать дальше — удалить канал из списка, подождать или попросить у вас новую ссылку-приглашение.
+**The skill no longer crashes when a channel is private or you've been banned.** Previously, a single channel error would break the whole request. Now the agent gets a clear JSON response with the error type and a suggested next step — remove the channel, wait, or ask you for a new invite link.
 
 ### Improved
 - Channel error handling: both Pyrogram and Telethon backends now catch `ChannelPrivate`, `ChannelBanned`, `ChatForbidden`, `ChatRestricted`, `UserBannedInChannel`, `InviteHashExpired`, and more
@@ -15,7 +15,7 @@
 
 ## [0.7.0] - 2026-02-28
 
-**Новая команда `tg-reader-check` — быстрая диагностика за секунду.** Агент запускает её перед чтением каналов и сразу видит, всё ли на месте: credentials, session-файл, нужные библиотеки. Если что-то не так — получает конкретную подсказку, как починить. Больше никаких загадочных ошибок при первом запуске.
+**New `tg-reader-check` command — instant diagnostics in one second.** The agent runs it before reading channels and immediately sees whether credentials, session file, and libraries are all in place. If something is wrong, it gets a specific suggestion on how to fix it. No more mysterious errors on first run.
 
 ### Added
 - `tg-reader-check` command — offline diagnostic that verifies credentials, session files, and backend availability
@@ -30,7 +30,7 @@
 
 ## [0.6.1] - 2026-02-28
 
-**Скилл больше не зависает, если session-файл потерялся.** Раньше при отсутствии файла Telegram молча просил пройти авторизацию заново — агент не мог это обработать. Теперь вы получите JSON с объяснением, где файл ожидался, какие session-файлы найдены на диске, и точную команду для исправления.
+**The skill no longer hangs when the session file is missing.** Previously, a missing file would silently trigger a Telegram re-auth prompt that the agent couldn't handle. Now you get a JSON error explaining where the file was expected, which session files were found on disk, and the exact command to fix it.
 
 ### Fixed
 - Session file validation: `fetch` and `info` commands now check that the `.session` file exists before connecting, instead of silently triggering a re-auth prompt
@@ -41,7 +41,7 @@
 
 ## [0.6.0] - 2026-02-24
 
-**Скилл теперь работает в автоматических задачах (cron) и изолированных агентах.** Если ваш агент работает по расписанию или в песочнице, где нет доступа к домашней папке — просто передайте путь к конфигу и session-файлу явно. Всё заработает без танцев с бубном.
+**The skill now works in scheduled tasks (cron) and isolated agents.** If your agent runs on a schedule or inside a sandbox without access to the home directory — just pass explicit paths to the config and session file. Everything works out of the box.
 
 ### Added
 - `--config-file` flag — pass explicit path to config JSON (overrides `~/.tg-reader.json`)
@@ -56,7 +56,7 @@
 
 ## [0.5.0] - 2026-02-23
 
-**Новая команда `tg-reader info` — узнайте всё о канале за секунду.** Название, описание, количество подписчиков и ссылка. Удобно, чтобы проверить канал перед тем, как читать его посты, или собрать список каналов с описаниями.
+**New `tg-reader info` command — learn everything about a channel in a second.** Title, description, subscriber count, and link. Great for checking a channel before reading its posts, or building a list of channels with descriptions.
 
 ### Added
 - `tg-reader info @channel` — new subcommand to fetch channel title, description, subscriber count and link
@@ -67,7 +67,7 @@
 
 ## [0.4.3] - 2026-02-23
 
-**Исправлены три бага, из-за которых авторизация и чтение постов могли ломаться.** Если раньше `tg-reader auth` выдавал непонятную ошибку или посты не загружались — обновите до этой версии.
+**Fixed three bugs that could break authentication and post fetching.** If `tg-reader auth` was giving you cryptic errors or posts wouldn't load — update to this version.
 
 ### Fixed
 - `reader.py`: removed `system_lang_code` from Pyrogram `Client` init — parameter is Telethon-only and caused `TypeError` on auth
@@ -78,7 +78,7 @@
 
 ## [0.4.2] - 2026-02-23
 
-**Улучшена документация для macOS и Linux.** Инструкции по установке теперь покрывают оба варианта, включая виртуальные окружения Python на Ubuntu/Debian.
+**Improved documentation for macOS and Linux.** Installation instructions now cover both platforms, including Python virtual environments on Ubuntu/Debian.
 
 ### Fixed
 - `README.md`: fix `python3 -m reader` fallback to `python3 -m tg_reader_unified`
@@ -93,7 +93,7 @@
 
 ## [0.4.1] - 2026-02-23
 
-**Повышена безопасность.** Session-файл теперь защищён правами доступа, а секретные ключи больше не попадают в логи.
+**Security hardened.** The session file is now protected with restricted permissions, and secret keys no longer leak into logs.
 
 ### Security
 - `test_session.py`: replaced partial `api_hash[:10]` print with masked output (`***`) to prevent secret leakage in logs or shared terminals
@@ -103,7 +103,7 @@
 
 ## [0.4.0] - 2026-02-23
 
-**Скилл теперь корректно подключается к OpenClaw.** Исправлен формат метаданных в SKILL.md, чтобы OpenClaw мог автоматически определять, что скиллу нужны credentials от Telegram.
+**The skill now integrates correctly with OpenClaw.** Fixed the SKILL.md metadata format so OpenClaw can automatically detect that the skill needs Telegram credentials.
 
 ### Fixed
 - `SKILL.md` frontmatter converted to single-line JSON as required by OpenClaw spec
@@ -122,7 +122,7 @@
 
 ## [0.3.0] - 2026-02-22
 
-**Добавлен второй движок — Telethon.** Если у вас не приходит код авторизации через Pyrogram или возникают другие проблемы с подключением — попробуйте Telethon. Одна команда, тот же результат.
+**Added a second engine — Telethon.** If the auth code isn't arriving via Pyrogram or you're hitting connection issues — try Telethon. One command, same result.
 
 ### Added
 - **Telethon alternative implementation** (`reader_telethon.py`)
@@ -145,7 +145,7 @@
 
 ## [0.2.1] - 2026-02-22
 
-**Одна команда `tg-reader` — и скилл сам выберет лучший движок.** Больше не нужно думать, Pyrogram или Telethon — всё работает автоматически. Но если хотите управлять вручную — флаг `--telethon` или переменная окружения к вашим услугам.
+**One command `tg-reader` — and the skill picks the best engine automatically.** No need to choose between Pyrogram and Telethon — it just works. But if you want manual control, the `--telethon` flag or an environment variable is at your service.
 
 ### Added
 - Unified entry point (`tg_reader_unified.py`) for automatic selection between Pyrogram and Telethon
@@ -166,7 +166,7 @@
 
 ## [0.2.0] - 2026-02-22
 
-**Подробные инструкции по установке и настройке.** Теперь даже если вы никогда не работали с Telegram API — пошаговый гайд проведёт вас от создания приложения на my.telegram.org до первого запроса.
+**Step-by-step setup guide included.** Even if you've never worked with the Telegram API — the guide walks you through creating an app on my.telegram.org all the way to your first request.
 
 ### Added
 - Detailed Telegram API setup instructions in README
@@ -178,7 +178,7 @@
 
 ## [0.1.0] - 2026-02-22
 
-**Первый релиз! Читайте Telegram-каналы прямо из терминала.** Получайте посты из публичных и приватных каналов за любой период — в JSON для автоматизации или в текстовом формате для чтения глазами.
+**First release! Read Telegram channels straight from the terminal.** Fetch posts from public and private channels for any time window — as JSON for automation or plain text for reading.
 
 ### Initial release
 - Fetch posts from Telegram channels via MTProto
