@@ -2,6 +2,36 @@
 
 ---
 
+## [0.8.7] - 2026-03-01
+
+**Write output to a file instead of flooding the agent's context.** New `--output` flag saves fetch results (especially large comment payloads) to a file. The agent gets a short confirmation on stdout instead of the full JSON — saving tokens. Works great with cron: schedule periodic updates to a file, then analyze on demand without re-fetching.
+
+### Added
+- `--output` flag for `fetch` command — writes results to a file instead of stdout
+- `--output` without a filename defaults to `tg-output.json`
+- When `--output` is used, stdout returns a short JSON confirmation: `{"status": "ok", "output_file": "...", "count": N}`
+- `SKILL.md`: new "Saving to File (Token Economy)" section in After Fetching — explains the periodic update pattern
+
+---
+
+## [0.8.6] - 2026-03-01
+
+**Exec approvals guidance and documentation cleanup.** Users on Linux couldn't figure out where to confirm command execution — the approval prompt lives in the Control UI, not the chat. SKILL.md now has a dedicated "Exec Approvals" section so the agent can explain this. Both SKILL.md and README.md were audited for redundancy and readability.
+
+### Added
+- `SKILL.md`: new "Exec Approvals" section — tells the agent how to help users find and approve pending command executions in the Control UI
+
+### Changed
+- `SKILL.md`: reordered sections by importance — Output Format, After Fetching, and Error Handling moved up; Setup & Installation moved down (agent rarely needs it)
+- `SKILL.md`: condensed Setup & Installation — removed step-by-step my.telegram.org walkthrough (duplicated README), kept essential commands only
+- `SKILL.md`: condensed Library Selection — removed code examples already shown in Commands section
+- `README.md`: removed duplicate "Library Selection" section (already covered in Setup Step 4)
+- `README.md`: moved orphaned troubleshooting items (confirmation code, ChannelInvalid, FloodWait) into the Troubleshooting section
+- `README.md`: removed duplicate PATH instructions from Install section (kept in Troubleshooting)
+- `README.md`: merged overlapping Security bullet points into a single clean list
+
+---
+
 ## [0.8.5] - 2026-03-01
 
 **Clear guide for running the skill on a schedule.** The "Isolated Agents & Cron Jobs" section is now a full "Scheduled Tasks & Cron" guide with two approaches: `sessionTarget: "main"` (recommended — reminder-based, works out of the box) and `sessionTarget: "isolated"` (autonomous but requires Docker setup and session file mounting). The agent now explains the trade-offs to the user when setting up a cron task.

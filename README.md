@@ -1,4 +1,4 @@
-# 📡 sergei-mikhailov-tg-channel-reader
+# sergei-mikhailov-tg-channel-reader
 
 > OpenClaw skill for reading Telegram channels via MTProto (Pyrogram or Telethon)
 
@@ -6,11 +6,11 @@ An [OpenClaw](https://openclaw.ai) skill that lets your AI agent fetch and summa
 
 ## Features
 
-- 📥 Fetch posts from one or multiple channels in one command
-- ⏱️ Flexible time windows: `24h`, `7d`, `2w`, or specific date
-- 📊 JSON output with views, forwards, and direct links
-- 🔒 Secure credential storage via env vars
-- 🤖 Works with any public channel — no bot admin required
+- Fetch posts from one or multiple channels in one command
+- Flexible time windows: `24h`, `7d`, `2w`, or specific date
+- JSON output with views, forwards, and direct links
+- Secure credential storage via env vars or config file
+- Works with any public channel — no bot admin required
 
 ## Why Use This Skill Instead of Web Monitoring?
 
@@ -20,7 +20,7 @@ OpenClaw can monitor Telegram channels via web scraping, but this skill uses **M
 |---|---|---|
 | **Reliability** | Breaks when Telegram updates its web UI | Always works — official protocol |
 | **Speed** | Slow (browser rendering) | Fast — direct API calls |
-| **Private channels** | ❌ Public only | ✅ Any channel you're subscribed to |
+| **Private channels** | Public only | Any channel you're subscribed to |
 | **Data richness** | Text only | Views, forwards, links, dates |
 | **Rate limits** | Frequent blocks & captchas | Soft limits, sufficient for personal use |
 | **Agent integration** | Requires extra parsing | Clean JSON, ready for agent to analyze |
@@ -49,20 +49,6 @@ pip install -e .
 > echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc
 > source ~/.bashrc
 > ```
-
-Make sure `tg-reader` is in your PATH. On macOS (default pip install):
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-On Linux (default pip install):
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
 
 ## Manual Install
 
@@ -93,7 +79,7 @@ You need a personal Telegram API key. This is free and takes 2 minutes.
    - **App api_id** — a number like `12345678`
    - **App api_hash** — a 32-character string like `a1b2c3d4e5f6789012345678abcdef12`
 
-> ⚠️ Keep these credentials private. Never share or commit them to git.
+> Keep these credentials private. Never share or commit them to git.
 
 ### Step 2 — Set credentials securely
 
@@ -130,7 +116,7 @@ secret-tool store --label="TG API" service tg-reader username api
 # Then retrieve at runtime: secret-tool lookup service tg-reader username api
 ```
 
-> 💡 Avoid storing `TG_API_HASH` in files that are backed up to the cloud or shared between users.
+> Avoid storing `TG_API_HASH` in files that are backed up to the cloud or shared between users.
 
 ### Step 3 — Authenticate once
 
@@ -148,36 +134,19 @@ Authentication creates a session file at `~/.tg-reader-session.session`. You onl
 
 By default, `tg-reader` uses **Pyrogram**. You can switch to **Telethon** if needed:
 
-**Option 1: Environment variable (persistent)**
-```bash
-# macOS
-echo 'export TG_USE_TELETHON=true' >> ~/.zshrc
-source ~/.zshrc
+| Method | Command |
+|--------|---------|
+| One-time flag | `tg-reader fetch @durov --since 24h --telethon` |
+| Persistent env var | `export TG_USE_TELETHON=true` (add to `~/.bashrc`) |
+| Direct command | `tg-reader-pyrogram` or `tg-reader-telethon` |
 
-# Linux
-echo 'export TG_USE_TELETHON=true' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**Option 2: Command flag (one-time)**
-```bash
-tg-reader fetch @durov --since 24h --telethon
-```
-
-**Option 3: Direct commands**
-```bash
-tg-reader-pyrogram fetch @durov --since 24h  # Force Pyrogram
-tg-reader-telethon fetch @durov --since 24h  # Force Telethon
-```
+Both implementations use the same API credentials and provide identical functionality. Telethon uses a separate session file (`~/.telethon-reader.session`).
 
 ### Step 5 — Start reading
 
 ```bash
-# Last 24 hours from a channel (default: Pyrogram)
+# Last 24 hours from a channel
 tg-reader fetch @durov --since 24h
-
-# Use Telethon instead
-tg-reader fetch @durov --since 24h --telethon
 
 # Last week, multiple channels
 tg-reader fetch @channel1 @channel2 --since 7d --limit 200
@@ -238,41 +207,6 @@ python3 -m tg_reader_unified auth
 python3 -m tg_reader_unified fetch @channel --since 24h
 ```
 
-## Library Selection
-
-The skill supports two MTProto implementations that you can switch between:
-
-### Pyrogram (default)
-- Modern, actively maintained
-- Default choice for `tg-reader` command
-- Session file: `~/.tg-reader-session.session`
-
-### Telethon (alternative)
-- Mature, stable library
-- Useful if you experience issues with Pyrogram
-- Session file: `~/.telethon-reader.session`
-
-### How to switch
-
-**Temporary (one command):**
-```bash
-tg-reader fetch @durov --since 24h --telethon
-```
-
-**Permanent (all commands):**
-```bash
-echo 'export TG_USE_TELETHON=true' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**Direct commands (bypass auto-selection):**
-```bash
-tg-reader-pyrogram fetch @durov --since 24h
-tg-reader-telethon fetch @durov --since 24h
-```
-
-Both implementations use the same API credentials and provide identical functionality.
-
 **Confirmation code not arriving**
 - Check all your Telegram devices — the code goes to the Telegram app, not SMS
 - Look for a message from the official "Telegram" service chat
@@ -286,18 +220,14 @@ Both implementations use the same API credentials and provide identical function
 - Telegram is rate-limiting requests
 - The error shows how many seconds to wait — just retry after that
 
-## Legal
-
-By using this skill you agree to the terms in [DISCLAIMER.md](./DISCLAIMER.md).
-
 ## Security
 
 This skill uses **MTProto** — the same protocol as the official Telegram app. This means:
 
-- 🔑 **`TG_API_HASH` is a secret** — treat it like a password. Never commit it to git, never share it.
-- 📱 **Session file = full account access** — `~/.tg-reader-session.session` grants complete access to your Telegram account. Keep it on your machine only.
-- 🚫 **Never copy session files** between machines or share them with anyone.
-- 👁️ **Your agent can read private channels** you're subscribed to — this is by design, but be aware of it.
+- **`TG_API_HASH` is a secret** — treat it like a password. Never commit it to git, never share it.
+- **Session file = full account access** — `~/.tg-reader-session.session` grants complete access to your Telegram account. Keep it on your machine only.
+- **Never copy session files** between machines or share them with anyone.
+- **Your agent can read private channels** you're subscribed to — this is by design, but be aware of it.
 
 **What the skill does NOT do:**
 - Does not send messages on your behalf
@@ -305,21 +235,13 @@ This skill uses **MTProto** — the same protocol as the official Telegram app. 
 - Does not share your data with third parties
 
 **Best practices:**
-- Store credentials in env vars, not in files tracked by git
+- Store credentials in env vars or `~/.tg-reader.json` (outside the project), not in files tracked by git
 - Add `*.session` and `.tg-reader.json` to `.gitignore`
 - Revoke your API app on my.telegram.org if credentials are compromised
 
-- ✅ Credentials stored in env vars or `~/.tg-reader.json` (outside the project)
-- ✅ Session file stored in home directory (`~/.tg-reader-session.session`)
-- ❌ Never commit `TG_API_HASH`, `TG_API_ID`, or `*.session` files
+## Legal
 
-`.gitignore` includes:
-```
-*.session
-*.session-journal
-.tg-reader.json
-.env
-```
+By using this skill you agree to the terms in [DISCLAIMER.md](./DISCLAIMER.md).
 
 ## License
 
