@@ -465,10 +465,54 @@ def _write_output(result, output_path, fmt, since_label):
     print(json.dumps({"status": "ok", "output_file": output_path, "count": count}, ensure_ascii=False))
 
 
+# ── CLI helpers ──────────────────────────────────────────────────────────────
+
+# Common flags hallucinated by LLM agents instead of --since
+_FLAG_TYPOS = {
+    "--hours": "--since (e.g. --since 24h)",
+    "--days": "--since (e.g. --since 7d)",
+    "--weeks": "--since (e.g. --since 2w)",
+    "--time": "--since (e.g. --since 24h)",
+    "--period": "--since (e.g. --since 24h)",
+    "--after": "--since (e.g. --since 24h)",
+    "--from": "--since (e.g. --since 24h or --since 2026-01-01)",
+    "--media": "--text-only (inverted: use --text-only to exclude media-only posts)",
+}
+
+
+def _check_flag_typos():
+    """Catch common parameter hallucinations from LLM agents and exit with a helpful JSON error."""
+    for arg in sys.argv[1:]:
+        if arg in _FLAG_TYPOS:
+            print(json.dumps({
+                "error": f"Unknown flag: {arg}. Did you mean {_FLAG_TYPOS[arg]}?",
+                "action": "fix_command",
+            }))
+            sys.exit(1)
+
+
+class _JsonArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that outputs errors as JSON instead of plain text."""
+
+    def error(self, message):
+        # Check for flag typos in the error message
+        for typo, fix in _FLAG_TYPOS.items():
+            if typo in message:
+                print(json.dumps({
+                    "error": f"Unknown flag: {typo}. Did you mean {fix}?",
+                    "action": "fix_command",
+                }))
+                sys.exit(1)
+        print(json.dumps({"error": f"Invalid command: {message}", "action": "fix_command"}))
+        sys.exit(1)
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(
+    _check_flag_typos()
+
+    parser = _JsonArgumentParser(
         prog="tg-reader-telethon",
         description="Read Telegram channel posts for OpenClaw agent (Telethon version)"
     )

@@ -2,6 +2,19 @@
 
 ---
 
+## [0.8.8] - 2026-03-01
+
+**Guard against hallucinated CLI flags.** LLM agents sometimes invent flags like `--hours` or `--days` instead of using the correct `--since` flag. Now the CLI catches these typos and returns a helpful JSON error with the correct flag name — so the agent can self-correct instead of failing silently. All argparse errors are now JSON-formatted for agent readability.
+
+### Added
+- Pre-flight check for common hallucinated flags (`--hours`, `--days`, `--weeks`, `--time`, `--period`, `--after`, `--from`, `--media`) with suggested corrections
+- Custom `_JsonArgumentParser`: all CLI errors now output structured JSON (`{"error": "...", "action": "fix_command"}`) instead of plain text
+
+### Changed
+- `CLAUDE.md`: updated current version to 0.8.8
+
+---
+
 ## [0.8.7] - 2026-03-01
 
 **Write output to a file instead of flooding the agent's context.** New `--output` flag saves fetch results (especially large comment payloads) to a file. The agent gets a short confirmation on stdout instead of the full JSON — saving tokens. Works great with cron: schedule periodic updates to a file, then analyze on demand without re-fetching.

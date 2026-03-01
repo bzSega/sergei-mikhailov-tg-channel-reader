@@ -39,7 +39,7 @@ clawhub list                         # reads .clawhub/lock.json
 
 **Type:** OpenClaw skill (Python package published to ClawHub registry)
 **Registry slug:** `sergei-mikhailov-tg-channel-reader`
-**Current version:** 0.7.0
+**Current version:** 0.8.8
 **License:** MIT
 
 ### What it does
