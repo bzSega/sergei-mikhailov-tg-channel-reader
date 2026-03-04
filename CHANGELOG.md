@@ -2,6 +2,12 @@
 
 ---
 
+## [0.8.10] - 2026-03-04
+
+**Version bump.** Internal version alignment — no functional changes.
+
+---
+
 ## [0.8.9] - 2026-03-04
 
 **Setup script for first-time installation.** New `setup-tg-reader.sh` checks all prerequisites (Python version, CLI commands in PATH, MTProto libraries, credentials, session file), runs `tg-reader-check`, and **automatically adds commands to OpenClaw exec approvals allowlist** via `openclaw approvals allowlist add --gateway`. No more manual approval needed when using the setup script.
