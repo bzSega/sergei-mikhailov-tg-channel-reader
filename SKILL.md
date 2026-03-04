@@ -1,13 +1,14 @@
 ---
 name: sergei-mikhailov-tg-channel-reader
-description: Read and summarize posts from Telegram channels via MTProto (Pyrogram or Telethon). Fetch recent messages from public or private channels by time window.
+description: Read posts and comments from Telegram channels via MTProto (Pyrogram or Telethon). Fetch recent messages and discussion replies from public or private channels by time window.
 metadata: {"openclaw": {"emoji": "📡", "requires": {"bins": ["tg-reader", "tg-reader-check"], "env": ["TG_API_ID", "TG_API_HASH"]}, "primaryEnv": "TG_API_HASH"}}
 ---
 
 # tg-channel-reader
 
-Read posts from Telegram channels using MTProto (Pyrogram or Telethon).
+Read posts and comments from Telegram channels using MTProto (Pyrogram or Telethon).
 Works with any public channel and private channels the user is subscribed to.
+Supports fetching discussion replies (comments) for individual posts.
 
 > **Security notice:** This skill requires `TG_API_ID` and `TG_API_HASH` from [my.telegram.org](https://my.telegram.org). The session file grants full Telegram account access — store it securely and never share it.
 
