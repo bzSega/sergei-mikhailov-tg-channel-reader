@@ -2,6 +2,19 @@
 
 ---
 
+## [0.8.9] - 2026-03-04
+
+**Setup script for first-time installation.** New `setup-tg-reader.sh` checks all prerequisites (Python version, CLI commands in PATH, MTProto libraries, credentials, session file), runs `tg-reader-check`, and **automatically adds commands to OpenClaw exec approvals allowlist** via `openclaw approvals allowlist add --gateway`. No more manual approval needed when using the setup script.
+
+### Added
+- `setup-tg-reader.sh` — pre-flight setup script with colored output, auto-install from `setup.py`, and automatic exec approvals configuration
+- SKILL.md: added CLI approval commands (`openclaw approvals allowlist add --gateway`) and setup script reference
+
+### Changed
+- SKILL.md: restructured Exec Approvals section — quick setup first, manual CLI second, UI/messenger third
+
+---
+
 ## [0.8.8] - 2026-03-01
 
 **Guard against hallucinated CLI flags.** LLM agents sometimes invent flags like `--hours` or `--days` instead of using the correct `--since` flag. Now the CLI catches these typos and returns a helpful JSON error with the correct flag name — so the agent can self-correct instead of failing silently. All argparse errors are now JSON-formatted for agent readability.

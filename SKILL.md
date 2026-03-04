@@ -15,12 +15,33 @@ Works with any public channel and private channels the user is subscribed to.
 
 ## Exec Approvals
 
-OpenClaw may require the user to **approve command execution** before `tg-reader` or `tg-reader-check` can run. If the command hangs or the user says nothing is happening:
+> **Just installed via `clawhub install`?** Complete Setup & Installation (below) first — the skill needs `pip install`, credentials, and a session file before exec approvals matter.
 
-1. Tell the user to open **[Control UI](https://docs.openclaw.ai/web/control-ui)** at `http://localhost:18789/` — there should be a pending approval request in the exec approvals panel. Click **"Always allow"** to add the command to the allowlist.
-2. If the user works via a messenger (Telegram, Slack, Discord) — the OpenClaw bot may send the approval request as a message in the chat. The user can reply with `/approve <id> allow-always` (the bot provides the `<id>`). Other options: `/approve <id> allow-once` or `/approve <id> deny`.
+OpenClaw blocks unknown CLI commands by default. The user must approve `tg-reader` commands before they can run. If the command hangs or the user says nothing is happening — exec approval is likely pending.
 
-The approval prompt appears in the **Control UI or as a bot message** — not as part of the agent's conversation. This is a common source of confusion.
+### Quick setup (recommended)
+
+Run from the skill directory — checks prerequisites, installs pip packages if needed, AND adds commands to allowlist automatically:
+
+```bash
+cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
+bash setup-tg-reader.sh
+```
+
+### Manual CLI approval
+
+```bash
+openclaw approvals allowlist add --gateway "$(which tg-reader)"
+openclaw approvals allowlist add --gateway "$(which tg-reader-check)"
+openclaw approvals allowlist add --gateway "$(which tg-reader-telethon)"
+```
+
+### Alternative: approve on first use
+
+1. **Control UI** — open `http://localhost:18789/`, find the pending approval for `tg-reader`, click **"Always allow"**. [Docs](https://docs.openclaw.ai/web/control-ui)
+2. **Messenger** (Telegram, Slack, Discord) — the bot sends an approval request with an `<id>`. Reply: `/approve <id> allow-always`. Other options: `allow-once`, `deny`.
+
+The approval prompt appears in the **Control UI or as a bot message** — not in the agent's conversation. This is a common source of confusion.
 
 ---
 
@@ -46,6 +67,8 @@ tg-reader info @channel_name
 # 3. Fetch recent posts
 tg-reader fetch @channel_name --since 24h
 ```
+
+> **`tg-reader: command not found`?** Run `bash setup-tg-reader.sh` from the skill directory (it will install the package), or manually: `cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader && pip install .`
 
 ---
 
@@ -251,7 +274,7 @@ Errors include an `error_type` and `action` field to help agents decide what to 
 |-------|--------|
 | `Session file not found` | Run `tg-reader-check` — use the `suggestion` from output |
 | `Missing credentials` | Guide user through Setup (Step 1-2 below) |
-| `tg-reader: command not found` | Use `python3 -m tg_reader_unified` instead |
+| `tg-reader: command not found` | Run `bash setup-tg-reader.sh` from the skill directory, or manually: `pip install .` Fallback: `python3 -m tg_reader_unified` |
 | `AUTH_KEY_UNREGISTERED` | Session expired — delete and re-auth (see below) |
 
 ### Session Expired
@@ -312,21 +335,33 @@ chmod 600 ~/.tg-reader.json
 
 > **Note:** Agents and servers typically don't load shell profiles. If credentials aren't found after setting env vars, use `~/.tg-reader.json` instead.
 
-### Step 3 — Install
+### Step 3 — Install & Configure
 
 ```bash
 npx clawhub@latest install sergei-mikhailov-tg-channel-reader
 cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto telethon && pip install .
+bash setup-tg-reader.sh
 ```
 
-On Linux with managed Python (Ubuntu/Debian), use a venv:
+The setup script automatically: installs Python packages (`pip install .`), checks credentials and session, runs `tg-reader-check`, and adds commands to OpenClaw exec approvals allowlist.
+
+On Linux with managed Python (Ubuntu/Debian), use a venv **before** running the setup script:
 
 ```bash
 python3 -m venv ~/.venv/tg-reader
-~/.venv/tg-reader/bin/pip install pyrogram tgcrypto telethon && ~/.venv/tg-reader/bin/pip install .
 echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 ```
+
+<details>
+<summary>Manual install (without setup script)</summary>
+
+```bash
+cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
+pip install pyrogram tgcrypto telethon && pip install .
+openclaw approvals allowlist add --gateway "$(which tg-reader)"
+openclaw approvals allowlist add --gateway "$(which tg-reader-check)"
+```
+</details>
 
 ### Step 4 — Authenticate
 
@@ -336,11 +371,13 @@ tg-reader auth
 
 Pyrogram will ask to confirm the phone number — answer `y`. The code arrives in the Telegram app (not SMS).
 
-### Step 5 — Secure the Session
+### Step 5 — Verify
 
 ```bash
-chmod 600 ~/.tg-reader-session.session
+tg-reader-check
 ```
+
+Should return `"status": "ok"`. If not — fix the reported issues and re-run `bash setup-tg-reader.sh`.
 
 ---
 
