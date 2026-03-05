@@ -2,6 +2,17 @@
 
 ---
 
+## [0.8.12] - 2026-03-05
+
+**Security scan fixes (round 2).** Fixed remaining broad session discovery in reader.py and reader_telethon.py — now all three modules use the same restricted `_SESSION_NAMES` list. Restructured README credential examples to recommend `~/.tg-reader.json` first instead of `~/.bashrc`.
+
+### Changed
+- `reader.py`: replaced broad `*.session` glob with known tg-reader session names only
+- `reader_telethon.py`: same fix — restricted session discovery to known names
+- `README.md`: credential setup now recommends `~/.tg-reader.json` (Option A); env vars demoted to Option D with warning against writing to shell profiles
+
+---
+
 ## [0.8.11] - 2026-03-05
 
 **Security scan fixes.** Addressed OpenClaw security scanner findings to move from "Suspicious" to "Benign".

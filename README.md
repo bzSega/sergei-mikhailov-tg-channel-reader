@@ -83,24 +83,21 @@ You need a personal Telegram API key. This is free and takes 2 minutes.
 
 ### Step 2 — Set credentials securely
 
-The simplest way is `~/.bashrc`, but it's less secure if you share your machine or use cloud backups. Choose the method that fits your threat model:
+Choose the method that fits your setup. Avoid writing `TG_API_HASH` to shell profiles (`~/.bashrc`) — it ends up in backups, shell history, and is visible to other users on shared machines.
 
-**Option A: `~/.bashrc` (simple, convenient)**
+**Option A: `~/.tg-reader.json` (recommended)**
 ```bash
-echo 'export TG_API_ID=12345678' >> ~/.bashrc
-echo 'export TG_API_HASH=your_api_hash_here' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**Option B: `~/.tg-reader.json` (outside project, never commit)**
-```json
+cat > ~/.tg-reader.json << 'EOF'
 {
   "api_id": 12345678,
   "api_hash": "your_api_hash_here"
 }
+EOF
+chmod 600 ~/.tg-reader.json
 ```
+Works everywhere — agents, servers, interactive shells. File is outside the project and never committed.
 
-**Option C: `direnv` (recommended for developers)**
+**Option B: `direnv` (recommended for developers)**
 ```bash
 # Install direnv, then create .envrc in your working directory
 echo 'export TG_API_ID=12345678' >> .envrc
@@ -109,12 +106,19 @@ echo '.envrc' >> .gitignore
 direnv allow
 ```
 
-**Option D: System keychain (most secure)**
+**Option C: System keychain (most secure)**
 ```bash
 # Linux (secret-tool)
 secret-tool store --label="TG API" service tg-reader username api
 # Then retrieve at runtime: secret-tool lookup service tg-reader username api
 ```
+
+**Option D: Environment variables (interactive shell only)**
+```bash
+export TG_API_ID=12345678
+export TG_API_HASH="your_api_hash_here"
+```
+Set in your current shell session. For persistent storage, use Option A instead.
 
 > Avoid storing `TG_API_HASH` in files that are backed up to the cloud or shared between users.
 
@@ -137,7 +141,7 @@ By default, `tg-reader` uses **Pyrogram**. You can switch to **Telethon** if nee
 | Method | Command |
 |--------|---------|
 | One-time flag | `tg-reader fetch @durov --since 24h --telethon` |
-| Persistent env var | `export TG_USE_TELETHON=true` (add to `~/.bashrc`) |
+| Persistent env var | `export TG_USE_TELETHON=true` (or add `"use_telethon": true` to `~/.tg-reader.json`) |
 | Direct command | `tg-reader-pyrogram` or `tg-reader-telethon` |
 
 Both implementations use the same API credentials and provide identical functionality. Telethon uses a separate session file (`~/.telethon-reader.session`).
