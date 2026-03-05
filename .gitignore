@@ -1,6 +1,7 @@
 *.session
 *.session-journal
 .tg-reader.json
+.tg-reader-state.json
 .env
 __pycache__/
 *.pyc

@@ -213,7 +213,8 @@ async def _fetch_comments(client, entity, message_id: int, comment_limit: int) -
 
 
 async def fetch_messages(client: TelegramClient, channel: str, since: datetime, limit: int, text_only: bool,
-                         comments: bool = False, comment_limit: int = 10, comment_delay: float = 3):
+                         comments: bool = False, comment_limit: int = 10, comment_delay: float = 3,
+                         min_id: int = 0):
     """Fetch messages from a single channel."""
     messages = []
 
@@ -232,7 +233,7 @@ async def fetch_messages(client: TelegramClient, channel: str, since: datetime, 
 
         # Fetch messages
         msg_index = 0
-        async for msg in client.iter_messages(entity, limit=limit):
+        async for msg in client.iter_messages(entity, limit=limit, min_id=min_id):
             # Check if message is older than 'since'
             msg_date = msg.date.replace(tzinfo=timezone.utc)
             if msg_date < since:
@@ -339,7 +340,8 @@ _FLOOD_WAIT_MAX = 60  # auto-retry only if wait is <= this many seconds
 
 
 async def fetch_multiple(channels: list, since: datetime, limit: int, text_only: bool,
-                         config_file=None, session_file=None, delay: float = 10):
+                         config_file=None, session_file=None, delay: float = 10,
+                         min_ids: dict = None):
     """Fetch messages from multiple channels sequentially with delays.
 
     Channels are fetched one at a time to avoid Telegram FloodWait.
@@ -359,7 +361,9 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, text_only:
     results = []
     try:
         for i, channel in enumerate(channels):
-            result = await fetch_messages(client, channel, since, limit, text_only)
+            channel_min_id = (min_ids or {}).get(channel, 0)
+            result = await fetch_messages(client, channel, since, limit, text_only,
+                                          min_id=channel_min_id)
 
             # Auto-retry on FloodWait if wait is reasonable
             if (isinstance(result, dict) and result.get("error_type") == "flood_wait"):
@@ -370,7 +374,8 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, text_only:
                     wait_seconds = 0
                 if 0 < wait_seconds <= _FLOOD_WAIT_MAX:
                     await asyncio.sleep(wait_seconds)
-                    result = await fetch_messages(client, channel, since, limit, text_only)
+                    result = await fetch_messages(client, channel, since, limit, text_only,
+                                                  min_id=channel_min_id)
 
             results.append(result)
 
@@ -385,7 +390,8 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, text_only:
 
 async def fetch_single(channel: str, since: datetime, limit: int, text_only: bool,
                        config_file=None, session_file=None,
-                       comments: bool = False, comment_limit: int = 10, comment_delay: float = 3):
+                       comments: bool = False, comment_limit: int = 10, comment_delay: float = 3,
+                       min_id: int = 0):
     """Fetch messages from a single channel."""
     api_id, api_hash, session_name = get_config(config_file, session_file)
     _validate_session(session_name)
@@ -401,7 +407,7 @@ async def fetch_single(channel: str, since: datetime, limit: int, text_only: boo
     try:
         return await fetch_messages(client, channel, since, limit, text_only,
                                     comments=comments, comment_limit=comment_limit,
-                                    comment_delay=comment_delay)
+                                    comment_delay=comment_delay, min_id=min_id)
     finally:
         await client.disconnect()
 
@@ -553,6 +559,10 @@ def main():
     fetch_p.add_argument("--format", choices=["json", "text"], default="json")
     fetch_p.add_argument("--output", nargs="?", const="tg-output.json", default=None,
                         help="Write output to file instead of stdout (default: tg-output.json)")
+    fetch_p.add_argument("--all", action="store_true", dest="fetch_all",
+                        help="Ignore read tracking and fetch all matching posts")
+    fetch_p.add_argument("--state-file", default=None,
+                        help="Path to state file for read tracking (overrides config)")
 
     # auth
     sub.add_parser("auth", help="Authenticate with Telegram (first-time setup)")
@@ -586,14 +596,63 @@ def main():
         if args.comments and limit == 100:
             limit = 30
 
+        # Read tracking (read_unread mode)
+        from tg_state import load_tracking_config, load_state, get_last_read_id, update_state, save_state
+
+        read_unread, state_file_path = load_tracking_config(cf)
+        if args.state_file:
+            state_file_path = args.state_file
+
+        use_tracking = read_unread and not args.fetch_all
+        state = None
+        min_id = 0
+        min_ids = {}
+
+        if use_tracking:
+            state = load_state(state_file_path)
+            if len(args.channels) == 1:
+                min_id = get_last_read_id(state, args.channels[0])
+            else:
+                min_ids = {ch: get_last_read_id(state, ch) for ch in args.channels}
+
+            # When tracking has state, --since is not needed — fetch all unread.
+            # On first run (no state, min_id=0), --since still applies (default 24h).
+            has_state = min_id > 0 or any(v > 0 for v in min_ids.values())
+            if has_state:
+                since_dt = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
         if len(args.channels) == 1:
             result = asyncio.run(fetch_single(
                 args.channels[0], since_dt, limit, args.text_only, cf, sf,
                 comments=args.comments, comment_limit=args.comment_limit,
-                comment_delay=args.comment_delay))
+                comment_delay=args.comment_delay, min_id=min_id))
         else:
             result = asyncio.run(fetch_multiple(args.channels, since_dt, limit, args.text_only, cf, sf,
-                                                delay=args.delay))
+                                                delay=args.delay, min_ids=min_ids))
+
+        # Update tracking state after successful fetch
+        if use_tracking and state is not None:
+            if isinstance(result, list):
+                for ch_result in result:
+                    if "error" not in ch_result and ch_result.get("messages"):
+                        newest_id = max(m["id"] for m in ch_result["messages"])
+                        update_state(state, ch_result["channel"], newest_id)
+            elif "error" not in result and result.get("messages"):
+                newest_id = max(m["id"] for m in result["messages"])
+                update_state(state, result["channel"], newest_id)
+            save_state(state, state_file_path)
+
+        # Add tracking metadata to output
+        if read_unread:
+            tracking_meta = {"enabled": True}
+            if args.fetch_all:
+                tracking_meta["overridden"] = True
+            if isinstance(result, list):
+                for ch_result in result:
+                    if "error" not in ch_result:
+                        ch_result["read_unread"] = tracking_meta.copy()
+            elif "error" not in result:
+                result["read_unread"] = tracking_meta
 
         if args.output:
             _write_output(result, args.output, args.format, args.since)

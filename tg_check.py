@@ -254,6 +254,51 @@ def _check_backends() -> tuple:
 
 # ── Orchestration ────────────────────────────────────────────────────────────
 
+def _check_tracking(config_file=None) -> tuple:
+    """Check read-tracking configuration and state file.
+
+    Returns:
+        (tracking_dict, problems_list)
+    """
+    problems: list = []
+
+    # Read tracking config from the same config file as credentials
+    read_unread = False
+    state_file = str(Path.home() / ".tg-reader-state.json")
+
+    config_path = Path(config_file) if config_file else Path.home() / ".tg-reader.json"
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                cfg = json.load(f)
+            read_unread = cfg.get("read_unread", False)
+            state_file = cfg.get("state_file", state_file)
+        except (json.JSONDecodeError, OSError):
+            pass  # already reported by _check_credentials
+
+    result: dict = {
+        "read_unread": read_unread,
+        "state_file": state_file,
+        "state_file_exists": Path(state_file).exists(),
+    }
+
+    if read_unread and Path(state_file).exists():
+        try:
+            with open(state_file) as f:
+                state_data = json.load(f)
+            channels = state_data.get("channels", {})
+            result["tracked_channels"] = len(channels)
+            if channels:
+                result["channels"] = {
+                    k: v.get("updated_at", "unknown") for k, v in channels.items()
+                }
+        except (json.JSONDecodeError, OSError) as e:
+            result["state_file_valid"] = False
+            problems.append(f"State file {state_file} is invalid: {e}")
+
+    return result, problems
+
+
 def run_check(config_file=None, session_file=None) -> dict:
     """Run all diagnostic checks and return combined result."""
     all_problems: list = []
@@ -269,6 +314,9 @@ def run_check(config_file=None, session_file=None) -> dict:
     backends, backend_problems = _check_backends()
     all_problems.extend(backend_problems)
 
+    tracking, tracking_problems = _check_tracking(config_file)
+    all_problems.extend(tracking_problems)
+
     status = "ok" if not all_problems else "error"
 
     return {
@@ -276,6 +324,7 @@ def run_check(config_file=None, session_file=None) -> dict:
         "credentials": credentials,
         "session": session,
         "backends": backends,
+        "tracking": tracking,
         "problems": all_problems,
     }
 

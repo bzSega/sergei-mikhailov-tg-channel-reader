@@ -2,6 +2,27 @@
 
 ---
 
+## [0.9.0] - 2026-03-05
+
+**Only see new posts.** Enable `read_unread` mode and the skill remembers what you've already seen — subsequent runs return only unread posts, no `--since` needed. Great for daily digests and monitoring workflows. Add `"read_unread": true` to `~/.tg-reader.json` and you're set.
+
+### Added
+- `read_unread` mode: per-channel `last_read_id` stored in `~/.tg-reader-state.json`
+- `"read_unread": true` config option in `~/.tg-reader.json` to enable the mode
+- `"state_file"` config option and `--state-file` CLI flag for custom state file location
+- `--all` CLI flag to bypass read_unread mode and fetch everything without updating state
+- `read_unread` metadata in JSON output when the mode is active
+- `tg_state.py` — shared state management module (no heavy dependencies)
+- `tg-reader-check` now reports read_unread configuration and state file status
+
+### Changed
+- When `read_unread` is active and state exists, `--since` is automatically ignored (all unread posts returned)
+- On first run (no state), `--since` still applies (default 24h)
+- `_fetch_channel` (Pyrogram) accepts optional `min_id` — breaks iteration at already-read messages
+- `fetch_messages` / `iter_messages` (Telethon) uses native `min_id` for server-side filtering
+
+---
+
 ## [0.8.12] - 2026-03-05
 
 **Security scan fixes (round 2).** Fixed remaining broad session discovery in reader.py and reader_telethon.py — now all three modules use the same restricted `_SESSION_NAMES` list. Restructured README credential examples to recommend `~/.tg-reader.json` first instead of `~/.bashrc`.

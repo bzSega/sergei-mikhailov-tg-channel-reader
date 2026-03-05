@@ -134,6 +134,16 @@ tg-reader fetch @channel_name --since 24h --comments --output comments.json
 
 # Use Telethon instead of Pyrogram (one-time)
 tg-reader fetch @channel_name --since 24h --telethon
+
+# Read unread mode — only fetch new (unread) posts, no --since needed
+# Requires "read_unread": true in ~/.tg-reader.json
+tg-reader fetch @channel_name
+
+# Override read_unread mode (fetch everything, don't update state)
+tg-reader fetch @channel_name --since 7d --all
+
+# Custom state file location
+tg-reader fetch @channel_name --since 24h --state-file /path/to/state.json
 ```
 
 ### `tg-reader auth` — First-time Authentication
@@ -143,6 +153,84 @@ tg-reader auth
 ```
 
 Creates a session file. Only needed once.
+
+---
+
+## Read Unread Mode
+
+Only return new (unread) posts — the skill remembers what you've already seen. Useful for daily digests and monitoring workflows.
+
+### Setup
+
+Add `"read_unread": true` to `~/.tg-reader.json`:
+
+```json
+{
+  "api_id": 12345,
+  "api_hash": "...",
+  "read_unread": true
+}
+```
+
+State is stored in `~/.tg-reader-state.json` (configurable via `"state_file"` in config or `--state-file` flag).
+
+### Behavior
+
+- **`--since` is not needed** when `read_unread` is enabled — the skill automatically returns all unread posts regardless of time
+- **First run** (no prior state for channel): `--since` applies as usual (default 24h); state file created
+- **Subsequent runs:** only posts newer than the last read are returned; `--since` is ignored
+- **`--all` flag:** bypasses read_unread mode — fetches everything by `--since` without updating state (preserves your position)
+- **New channel:** behaves like a first run (no prior state)
+- **No new posts:** state unchanged, `count: 0` returned
+
+### Examples
+
+```bash
+# With read_unread enabled — just fetch, no --since needed
+tg-reader fetch @channel_name
+
+# First run for a new channel — --since determines initial window
+tg-reader fetch @new_channel --since 7d
+
+# Override: fetch everything, don't update tracking state
+tg-reader fetch @channel_name --since 7d --all
+```
+
+### Output
+
+When read_unread mode is active, the JSON output includes a `read_unread` field:
+
+```json
+{
+  "channel": "@channel_name",
+  "read_unread": {"enabled": true},
+  "count": 5,
+  "messages": [...]
+}
+```
+
+With `--all`: `"read_unread": {"enabled": true, "overridden": true}`
+
+### Limitations
+
+- Tracking is **post-level only** — new comments on already-read posts are not caught
+- If a channel changes its username, tracking resets (state is keyed by username)
+- Concurrent runs for the same channel are safe but last writer wins
+
+### Diagnostic
+
+`tg-reader-check` reports tracking status:
+
+```json
+{
+  "tracking": {
+    "read_unread": true,
+    "state_file": "~/.tg-reader-state.json",
+    "state_file_exists": true,
+    "tracked_channels": 3
+  }
+}
+```
 
 ---
 

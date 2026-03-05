@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="sergei-mikhailov-tg-channel-reader",
-    version="0.8.12",
+    version="0.9.0",
     description="OpenClaw skill: read Telegram channels via MTProto",
     author="Sergey Mikhailov",
     url="https://github.com/bzSega/sergei-mikhailov-tg-channel-reader",
     license="MIT",
-    py_modules=["reader", "reader_telethon", "tg_reader_unified", "tg_check"],
+    py_modules=["reader", "reader_telethon", "tg_reader_unified", "tg_check", "tg_state"],
     install_requires=[
         "pyrogram>=2.0.0",
         "tgcrypto>=1.2.0",
