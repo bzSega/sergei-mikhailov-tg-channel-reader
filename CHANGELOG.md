@@ -2,6 +2,12 @@
 
 ---
 
+## [0.9.1] - 2026-03-05
+
+**Metadata fix.** Set correct ClawHub display name to "Telegram Channel Reader".
+
+---
+
 ## [0.9.0] - 2026-03-05
 
 **Only see new posts.** Enable `read_unread` mode and the skill remembers what you've already seen — subsequent runs return only unread posts, no `--since` needed. Great for daily digests and monitoring workflows. Add `"read_unread": true` to `~/.tg-reader.json` and you're set.
