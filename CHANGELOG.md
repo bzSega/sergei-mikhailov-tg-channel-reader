@@ -2,6 +2,17 @@
 
 ---
 
+## [0.8.11] - 2026-03-05
+
+**Security scan fixes.** Addressed OpenClaw security scanner findings to move from "Suspicious" to "Benign".
+
+### Changed
+- `setup-tg-reader.sh`: no longer auto-adds commands to exec allowlist — now prints the approval commands for the user to run manually
+- `tg_check.py`: session file discovery now searches only for known tg-reader session names instead of all `*.session` files (avoids exposing unrelated session paths)
+- `SKILL.md`: replaced insecure `~/.bashrc` credential example with recommendation to use `~/.tg-reader.json`; updated setup script descriptions to reflect manual approval flow
+
+---
+
 ## [0.8.10] - 2026-03-04
 
 **Version bump.** Internal version alignment — no functional changes.

@@ -12,7 +12,7 @@
 #   4. Verifies Telegram credentials (env vars or ~/.tg-reader.json)
 #   5. Verifies session file exists
 #   6. Runs tg-reader-check diagnostic
-#   7. Prints exec approval instructions for OpenClaw
+#   7. Prints exec approval instructions for OpenClaw (manual step)
 
 set -euo pipefail
 
@@ -177,9 +177,9 @@ for f in "${HOME}/.tg-reader-session.session" "${HOME}/.telethon-reader.session"
 done
 
 if [ "$SESSION_FOUND" -eq 0 ]; then
-    # Check current directory too
-    for f in *.session .*.session; do
-        if [ -f "$f" ] && [[ "$f" != *"-journal" ]]; then
+    # Check current directory for known tg-reader session names only
+    for f in tg-reader-session.session .tg-reader-session.session telethon-reader.session .telethon-reader.session; do
+        if [ -f "$f" ]; then
             ok "Found session: $(pwd)/$f"
             SESSION_FOUND=1
         fi
@@ -214,42 +214,25 @@ echo ""
 
 echo "── OpenClaw Exec Approvals ──"
 
-if command -v openclaw &>/dev/null; then
-    APPROVALS_ADDED=0
-    for cmd in tg-reader tg-reader-check tg-reader-pyrogram tg-reader-telethon; do
-        CMD_PATH=$(which "$cmd" 2>/dev/null || true)
-        if [ -n "$CMD_PATH" ]; then
-            if openclaw approvals allowlist add --gateway "$CMD_PATH" 2>/dev/null; then
-                ok "Allowlisted: $CMD_PATH"
-                APPROVALS_ADDED=$((APPROVALS_ADDED + 1))
-            else
-                warn "Could not add $CMD_PATH to allowlist (may already be added)"
-            fi
-        fi
-    done
-    if [ "$APPROVALS_ADDED" -gt 0 ]; then
-        ok "Added $APPROVALS_ADDED command(s) to OpenClaw exec approvals allowlist"
-    else
-        info "Commands may already be in the allowlist"
+info "OpenClaw blocks unknown CLI commands by default."
+info "Approve tg-reader commands using one of these methods:"
+echo ""
+echo "  Option A (CLI):"
+for cmd in tg-reader tg-reader-check tg-reader-pyrogram tg-reader-telethon; do
+    CMD_PATH=$(which "$cmd" 2>/dev/null || true)
+    if [ -n "$CMD_PATH" ]; then
+        echo "    openclaw approvals allowlist add --gateway \"$CMD_PATH\""
     fi
-else
-    warn "openclaw CLI not found — cannot auto-configure exec approvals"
-    echo ""
-    info "Manual options:"
-    echo ""
-    echo "  Option A (CLI, when openclaw is available):"
-    echo "    openclaw approvals allowlist add --gateway \"\$(which tg-reader)\""
-    echo "    openclaw approvals allowlist add --gateway \"\$(which tg-reader-check)\""
-    echo ""
-    echo "  Option B (Control UI):"
-    echo "    1. Open http://localhost:18789/"
-    echo "    2. Find the pending approval for tg-reader"
-    echo "    3. Click \"Always allow\""
-    echo ""
-    echo "  Option C (Messenger):"
-    echo "    Reply to the bot's approval request:"
-    echo "    /approve <id> allow-always"
-fi
+done
+echo ""
+echo "  Option B (Control UI):"
+echo "    1. Open http://localhost:18789/"
+echo "    2. Find the pending approval for tg-reader"
+echo "    3. Click \"Always allow\""
+echo ""
+echo "  Option C (Messenger):"
+echo "    Reply to the bot's approval request:"
+echo "    /approve <id> allow-always"
 
 echo ""
 

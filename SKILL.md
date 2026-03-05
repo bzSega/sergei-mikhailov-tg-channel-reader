@@ -22,7 +22,7 @@ OpenClaw blocks unknown CLI commands by default. The user must approve `tg-reade
 
 ### Quick setup (recommended)
 
-Run from the skill directory — checks prerequisites, installs pip packages if needed, AND adds commands to allowlist automatically:
+Run from the skill directory — checks prerequisites, installs pip packages if needed, and prints the approval commands to run:
 
 ```bash
 cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
@@ -332,9 +332,14 @@ EOF
 chmod 600 ~/.tg-reader.json
 ```
 
-**Alternative** (interactive only): add `export TG_API_ID=...` and `export TG_API_HASH=...` to `~/.bashrc` or `~/.zshrc`.
+**Alternative** (interactive shell only):
+```bash
+export TG_API_ID=YOUR_ID
+export TG_API_HASH="YOUR_HASH"
+```
+Set these in your current shell session. Avoid writing `TG_API_HASH` to shell profiles (`~/.bashrc`) — use `~/.tg-reader.json` instead for persistent storage.
 
-> **Note:** Agents and servers typically don't load shell profiles. If credentials aren't found after setting env vars, use `~/.tg-reader.json` instead.
+> **Note:** Agents and servers don't load shell profiles. Use `~/.tg-reader.json` (the recommended method above) for non-interactive environments.
 
 ### Step 3 — Install & Configure
 
@@ -344,7 +349,7 @@ cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
 bash setup-tg-reader.sh
 ```
 
-The setup script automatically: installs Python packages (`pip install .`), checks credentials and session, runs `tg-reader-check`, and adds commands to OpenClaw exec approvals allowlist.
+The setup script: installs Python packages (`pip install .`), checks credentials and session, runs `tg-reader-check`, and prints the exec approval commands for you to run manually.
 
 On Linux with managed Python (Ubuntu/Debian), use a venv **before** running the setup script:
 

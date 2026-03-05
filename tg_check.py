@@ -18,8 +18,20 @@ from pathlib import Path
 # at module level, and the whole point of this script is to work even when
 # backends are not installed.
 
+_SESSION_NAMES = [
+    ".tg-reader-session.session",
+    ".telethon-reader.session",
+    "tg-reader-session.session",
+    "telethon-reader.session",
+]
+
+
 def _find_session_files() -> list:
-    """Find .session files in home directory and current working directory."""
+    """Find tg-reader session files in home directory and current working directory.
+
+    Only looks for known tg-reader session names — does not scan for
+    arbitrary *.session files to avoid exposing unrelated session paths.
+    """
     found = []
     seen: set = set()
     dirs_checked: set = set()
@@ -28,10 +40,9 @@ def _find_session_files() -> list:
         if d in dirs_checked:
             continue
         dirs_checked.add(d)
-        for pattern in ["*.session", ".*.session"]:
-            for f in d.glob(pattern):
-                if f.name.endswith("-journal"):
-                    continue
+        for name in _SESSION_NAMES:
+            f = d / name
+            if f.exists() and f.name != name.rstrip(".session") + "-journal":
                 resolved = f.resolve()
                 if resolved in seen:
                     continue
