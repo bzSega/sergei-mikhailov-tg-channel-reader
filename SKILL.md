@@ -162,7 +162,7 @@ Only return new (unread) posts — the skill remembers what you've already seen.
 
 ### Setup
 
-Add `"read_unread": true` to `~/.tg-reader.json`:
+**Option A — config file** (`~/.tg-reader.json`):
 
 ```json
 {
@@ -172,7 +172,15 @@ Add `"read_unread": true` to `~/.tg-reader.json`:
 }
 ```
 
-State is stored in `~/.tg-reader-state.json` (configurable via `"state_file"` in config or `--state-file` flag).
+**Option B — env var** (works with `~/.openclaw/openclaw.json`):
+
+```bash
+export TG_READ_UNREAD=true
+```
+
+Env vars take priority over the config file. This lets you enable read_unread via `openclaw.json` Docker `env` alongside `TG_API_ID`/`TG_API_HASH`.
+
+State is stored in `~/.tg-reader-state.json` (configurable via `"state_file"` in config, `TG_STATE_FILE` env var, or `--state-file` flag).
 
 ### Behavior
 
@@ -511,7 +519,8 @@ The cron task runs in a **Docker container** — fully autonomous, no agent inte
           "setupCommand": "clawhub install sergei-mikhailov-tg-channel-reader && cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader && pip install pyrogram tgcrypto telethon && pip install .",
           "env": {
             "TG_API_ID": "YOUR_ID",
-            "TG_API_HASH": "YOUR_HASH"
+            "TG_API_HASH": "YOUR_HASH",
+            "TG_READ_UNREAD": "true"
           }
         }
       }

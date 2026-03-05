@@ -14,7 +14,10 @@ _DEFAULT_STATE_FILE = str(Path.home() / ".tg-reader-state.json")
 
 
 def load_tracking_config(config_file=None):
-    """Load tracking configuration from config file.
+    """Load tracking configuration from config file and env vars.
+
+    Priority: env vars > config file > defaults.
+    Env vars: TG_READ_UNREAD ("true"/"1"), TG_STATE_FILE.
 
     Returns:
         (read_unread: bool, state_file: str)
@@ -31,6 +34,17 @@ def load_tracking_config(config_file=None):
             state_file = cfg.get("state_file", state_file)
         except (json.JSONDecodeError, OSError):
             pass
+
+    # Env vars override config file
+    env_read_unread = os.environ.get("TG_READ_UNREAD", "").strip().lower()
+    if env_read_unread in ("true", "1"):
+        read_unread = True
+    elif env_read_unread in ("false", "0"):
+        read_unread = False
+
+    env_state_file = os.environ.get("TG_STATE_FILE", "").strip()
+    if env_state_file:
+        state_file = env_state_file
 
     return read_unread, state_file
 

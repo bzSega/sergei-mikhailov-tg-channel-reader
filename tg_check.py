@@ -265,6 +265,7 @@ def _check_tracking(config_file=None) -> tuple:
     # Read tracking config from the same config file as credentials
     read_unread = False
     state_file = str(Path.home() / ".tg-reader-state.json")
+    source = None
 
     config_path = Path(config_file) if config_file else Path.home() / ".tg-reader.json"
     if config_path.exists():
@@ -273,14 +274,31 @@ def _check_tracking(config_file=None) -> tuple:
                 cfg = json.load(f)
             read_unread = cfg.get("read_unread", False)
             state_file = cfg.get("state_file", state_file)
+            if read_unread:
+                source = "config_file"
         except (json.JSONDecodeError, OSError):
             pass  # already reported by _check_credentials
+
+    # Env vars override config file (same logic as tg_state.py)
+    env_read_unread = os.environ.get("TG_READ_UNREAD", "").strip().lower()
+    if env_read_unread in ("true", "1"):
+        read_unread = True
+        source = "env"
+    elif env_read_unread in ("false", "0"):
+        read_unread = False
+        source = "env"
+
+    env_state_file = os.environ.get("TG_STATE_FILE", "").strip()
+    if env_state_file:
+        state_file = env_state_file
 
     result: dict = {
         "read_unread": read_unread,
         "state_file": state_file,
         "state_file_exists": Path(state_file).exists(),
     }
+    if source:
+        result["source"] = source
 
     if read_unread and Path(state_file).exists():
         try:

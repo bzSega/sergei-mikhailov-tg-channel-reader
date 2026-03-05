@@ -2,6 +2,17 @@
 
 ---
 
+## [0.9.2] - 2026-03-05
+
+**Env var support for read_unread.** `TG_READ_UNREAD` and `TG_STATE_FILE` env vars now work alongside the config file — lets you enable read_unread mode via `~/.openclaw/openclaw.json` Docker `env` without needing `~/.tg-reader.json`.
+
+### Added
+- `TG_READ_UNREAD` env var (`"true"`/`"1"`) — enables read_unread mode; overrides config file
+- `TG_STATE_FILE` env var — custom state file path; overrides config file
+- `tg-reader-check` reports whether read_unread comes from env or config file
+
+---
+
 ## [0.9.1] - 2026-03-05
 
 **Metadata fix.** Set correct ClawHub display name to "Telegram Channel Reader".
