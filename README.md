@@ -2,7 +2,9 @@
 
 > OpenClaw skill for reading Telegram channels via MTProto (Pyrogram or Telethon)
 
-An [OpenClaw](https://openclaw.ai) skill that lets your AI agent fetch and summarize posts from any Telegram channel — public or private (if you're subscribed).
+[![Install on ClawHub](https://img.shields.io/badge/ClawHub-Install%20skill-2563eb?logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJsMTAgNXYxMGwtMTAgNUwyIDE3VjdsMTAtNXoiLz48L3N2Zz4=)](https://clawhub.ai/bzsega/sergei-mikhailov-tg-channel-reader)
+
+An [OpenClaw](https://openclaw.ai) skill that lets your AI agent fetch and summarize posts from any Telegram channel — public or private (if you're subscribed). Browse the skill on [ClawHub](https://clawhub.ai/bzsega/sergei-mikhailov-tg-channel-reader).
 
 ## Features
 
