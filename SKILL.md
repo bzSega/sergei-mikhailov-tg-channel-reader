@@ -280,6 +280,25 @@ With `--all`: `"read_unread": {"enabled": true, "overridden": true}`
 }
 ```
 
+**Optional `web_page` field** — present only when a post carries a Telegram link-preview card (e.g. Instant View articles, link shares). Photos / videos / documents are reported via `has_media` + `media_type`, not here.
+
+```json
+{
+  "id": 9876,
+  "text": "Card title\n\nCard description...\n\nhttps://example.com/article",
+  "has_media": false,
+  "web_page": {
+    "url": "https://example.com/article",
+    "display_url": "example.com/article",
+    "title": "Card title",
+    "description": "Card description...",
+    "site_name": "Example Site"
+  }
+}
+```
+
+When the message has no text of its own (a common pattern for channels publishing via Instant View), the `text` field is **synthesized** from `title + description + url` so the post still surfaces. The `web_page` object carries the original structured data for agents that want them separately.
+
 ### `fetch` with `--comments`
 
 ```json
@@ -323,9 +342,10 @@ With `--all`: `"read_unread": {"enabled": true, "overridden": true}`
 1. Parse the JSON output
 2. Posts with images/videos have `has_media: true` and a `media_type` field. Their text is in the `text` field (from the caption). **Do not skip posts just because they have media** — they often contain important text.
 3. Images and videos are **not analyzed** (no OCR/vision) — only the text/caption is returned.
-4. Summarize key themes, top posts by views, notable links
-5. If `comments_enabled: true`, analyze comment sentiment and key themes alongside the main posts
-6. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
+4. Posts with a Telegram link-preview card carry a `web_page` object (URL, title, description, site name). For Instant-View articles the `text` field is synthesized from the card, so these posts surface in summaries just like text posts — **do not skip them** even when `has_media: false`.
+5. Summarize key themes, top posts by views, notable links
+6. If `comments_enabled: true`, analyze comment sentiment and key themes alongside the main posts
+7. Save summary to `memory/YYYY-MM-DD.md` if user wants to track over time
 
 ### Saving to File (Token Economy)
 
