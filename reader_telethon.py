@@ -28,7 +28,7 @@ try:
         InviteHashExpiredError,
         InviteHashInvalidError,
     )
-    from telethon.tl.types import Channel
+    from telethon.tl.types import Channel, MessageMediaWebPage
     from telethon.tl.functions.channels import GetFullChannelRequest
 except ImportError:
     print(json.dumps({"error": "telethon not installed. Run: pip install telethon"}))
@@ -174,6 +174,44 @@ def parse_since(since: str) -> datetime:
         raise ValueError(f"Cannot parse --since value: {since!r}. Use '24h', '7d', or 'YYYY-MM-DD'.")
 
 
+def _extract_web_page(msg):
+    """Return link-preview card fields from msg.media (MessageMediaWebPage).
+
+    Telethon wraps the card in MessageMediaWebPage with a WebPage object inside.
+    WebPageEmpty / WebPagePending / WebPageNotModified are skipped because they
+    do not expose a usable URL.
+
+    Returns a dict, or None when there is no preview or the preview has no URL.
+    """
+    media = getattr(msg, "media", None)
+    if not isinstance(media, MessageMediaWebPage):
+        return None
+    wp = getattr(media, "webpage", None)
+    if not wp:
+        return None
+    url = getattr(wp, "url", None)
+    if not url:
+        return None
+    data = {"url": url}
+    for field in ("display_url", "title", "description", "site_name"):
+        value = getattr(wp, field, None)
+        if value:
+            data[field] = value
+    return data
+
+
+def _synth_text_from_web_page(wp: dict) -> str:
+    """Build text from title/description/url so card-only posts surface real content."""
+    parts = []
+    if wp.get("title"):
+        parts.append(wp["title"])
+    if wp.get("description"):
+        parts.append(wp["description"])
+    if wp.get("url"):
+        parts.append(wp["url"])
+    return "\n\n".join(parts)
+
+
 async def _check_discussion_group(client, entity) -> bool:
     """Check whether the channel has a linked discussion group (comments)."""
     try:
@@ -193,18 +231,24 @@ async def _fetch_comments(client, entity, message_id: int, comment_limit: int) -
     try:
         async for reply in client.iter_messages(entity, reply_to=message_id, limit=comment_limit):
             text = reply.message or ""
+            web_page = _extract_web_page(reply)
+            if not text and web_page:
+                text = _synth_text_from_web_page(web_page)
             if not text:
                 continue
             from_user = None
             if reply.sender:
                 from_user = getattr(reply.sender, "username", None) or str(reply.sender_id)
             reply_date = reply.date.replace(tzinfo=timezone.utc)
-            comments.append({
+            comment = {
                 "id": reply.id,
                 "date": reply_date.isoformat(),
                 "text": text,
                 "from_user": from_user,
-            })
+            }
+            if web_page:
+                comment["web_page"] = web_page
+            comments.append(comment)
     except FloodWaitError:
         raise  # let caller handle retry
     except Exception:
@@ -242,6 +286,17 @@ async def fetch_messages(client: TelegramClient, channel: str, since: datetime, 
             # Extract message data
             text = msg.message or ""
 
+            # Link-preview card: extract structured fields and treat as non-media
+            # so behaviour matches the Pyrogram backend (--text-only keeps these
+            # posts; has_media reflects "real" attachments only).
+            web_page = _extract_web_page(msg)
+            has_other_media = msg.media is not None and not isinstance(msg.media, MessageMediaWebPage)
+
+            # When the message has no text of its own, synthesize text from the
+            # card so the post surfaces in --text-only and downstream agents.
+            if not text and web_page:
+                text = _synth_text_from_web_page(web_page)
+
             # --text-only: skip posts that have no text at all
             if text_only and not text:
                 continue
@@ -253,11 +308,13 @@ async def fetch_messages(client: TelegramClient, channel: str, since: datetime, 
                 "views": msg.views or 0,
                 "forwards": msg.forwards or 0,
                 "link": f"https://t.me/{channel.lstrip('@')}/{msg.id}",
-                "has_media": msg.media is not None,
+                "has_media": has_other_media,
             }
 
-            if msg.media:
+            if has_other_media:
                 entry["media_type"] = type(msg.media).__name__
+            if web_page:
+                entry["web_page"] = web_page
 
             # Fetch comments for this post
             if comments and has_discussion:
@@ -454,6 +511,14 @@ def _print_text(result, since_label):
         for msg in ch_result["messages"]:
             print(f"\n[{msg['date']}] {msg['link']}")
             print(msg["text"][:500] + ("..." if len(msg["text"]) > 500 else ""))
+            wp = msg.get("web_page")
+            if wp:
+                title = wp.get("title") or wp.get("site_name") or ""
+                url = wp.get("url", "")
+                if title:
+                    print(f"  \U0001f517 {title} — {url}")
+                else:
+                    print(f"  \U0001f517 {url}")
             if "comments" in msg and msg["comments"]:
                 print(f"  [{msg['comment_count']} comments]")
                 for c in msg["comments"]:

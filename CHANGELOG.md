@@ -2,6 +2,25 @@
 
 ---
 
+## [0.9.3] - 2026-05-16
+
+**Posts with a link-preview card are no longer invisible.** Many channels (especially news outlets) publish via Telegram's Instant View — the message itself has little or no text, and the article body lives inside the link-preview card. Until now the skill dropped that card data entirely, so the agent reading the JSON saw an empty `text` field and skipped the post. Now the card's title, description, URL, and site name are exposed in a new `web_page` field, and when the message has no text of its own the reader synthesizes one from the card so the post still surfaces in summaries and `--text-only` filters.
+
+### Added
+- New `web_page` field on each message (and each comment) — present only when the post carries a Telegram link-preview card; contains `url`, `display_url`, `title`, `description`, `site_name` (whichever fields are non-empty)
+- Text synthesis: when the message has no `text` / `caption` but does have a `web_page`, the `text` field is filled from `title + description + url` so card-only posts are no longer dropped silently by downstream agents or by `--text-only`
+- Plain-text output (`--format text`) prints a `🔗 title — url` line after the post body when a card is present
+
+### Changed
+- Telethon backend: `has_media` is now `false` for messages whose only "media" is a link preview (`MessageMediaWebPage`), and `media_type` is no longer emitted for that case. This aligns the backend with Pyrogram, where `msg.media` was already `None` for these posts, and fixes a latent bug where `--text-only` would drop card-only posts on Telethon but keep them on Pyrogram.
+- Comment fetcher (both backends): a comment whose only content is a shared link is no longer dropped by the empty-text `continue` — the same text synthesis and `web_page` extraction now apply to comments.
+
+### Fixed
+- Pyrogram backend: `msg.web_page` is now read alongside `msg.text` / `msg.caption`. Previously the card data lived in a separate attribute the reader never touched, so even rich previews on text-bearing posts lost their structured metadata.
+- Telethon backend: `MessageMediaWebPage` is now unpacked into the structured `web_page` field. Previously only the bare class name `"MessageMediaWebPage"` was recorded in `media_type` and the inner `WebPage` (with the actual URL / title / description) was ignored.
+
+---
+
 ## [0.9.2] - 2026-03-05
 
 **Env var support for read_unread.** `TG_READ_UNREAD` and `TG_STATE_FILE` env vars now work alongside the config file — lets you enable read_unread mode via `~/.openclaw/openclaw.json` Docker `env` without needing `~/.tg-reader.json`.
