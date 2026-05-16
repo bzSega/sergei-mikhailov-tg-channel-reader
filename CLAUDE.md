@@ -42,7 +42,7 @@ clawhub list                         # reads .clawhub/lock.json
 **Type:** OpenClaw skill (Python package published to ClawHub registry)
 **Registry slug:** `sergei-mikhailov-tg-channel-reader`
 **ClawHub display name:** `Telegram Channel Reader` (pass `--name "Telegram Channel Reader"` when publishing)
-**Current version:** 0.9.2
+**Current version:** 0.9.3
 **License:** MIT
 
 ### What it does
@@ -173,3 +173,4 @@ Update the task index in this CLAUDE.md (below) every time a task file is create
 | # | Title | Status | File |
 |---|-------|--------|------|
 | 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | done (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
+| 0002 | Surface link-preview / web_page content in reader output | done (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |

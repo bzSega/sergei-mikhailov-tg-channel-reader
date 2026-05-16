@@ -178,6 +178,38 @@ def parse_since(since: str) -> datetime:
         raise ValueError(f"Cannot parse --since value: {since!r}. Use '24h', '7d', or 'YYYY-MM-DD'.")
 
 
+def _extract_web_page(msg):
+    """Return link-preview card fields from msg.web_page if present and usable.
+
+    Pyrogram exposes the card as msg.web_page (separate from msg.media).
+    Returns a dict, or None when there is no preview or the preview has no URL.
+    """
+    wp = getattr(msg, "web_page", None)
+    if not wp:
+        return None
+    url = getattr(wp, "url", None)
+    if not url:
+        return None
+    data = {"url": url}
+    for field in ("display_url", "title", "description", "site_name"):
+        value = getattr(wp, field, None)
+        if value:
+            data[field] = value
+    return data
+
+
+def _synth_text_from_web_page(wp: dict) -> str:
+    """Build text from title/description/url so card-only posts surface real content."""
+    parts = []
+    if wp.get("title"):
+        parts.append(wp["title"])
+    if wp.get("description"):
+        parts.append(wp["description"])
+    if wp.get("url"):
+        parts.append(wp["url"])
+    return "\n\n".join(parts)
+
+
 async def _check_discussion_group(app, channel: str) -> bool:
     """Check whether the channel has a linked discussion group (comments)."""
     try:
@@ -201,18 +233,24 @@ async def _fetch_comments(app, channel: str, message_id: int, comment_limit: int
                 text = reply.text
             elif reply.caption:
                 text = reply.caption
+            web_page = _extract_web_page(reply)
+            if not text and web_page:
+                text = _synth_text_from_web_page(web_page)
             if not text:
                 continue
             from_user = None
             if reply.from_user:
                 from_user = reply.from_user.username or str(reply.from_user.id)
             reply_date = reply.date if reply.date.tzinfo else reply.date.replace(tzinfo=timezone.utc)
-            comments.append({
+            comment = {
                 "id": reply.id,
                 "date": reply_date.isoformat(),
                 "text": text,
                 "from_user": from_user,
-            })
+            }
+            if web_page:
+                comment["web_page"] = web_page
+            comments.append(comment)
     except FloodWait:
         raise  # let caller handle retry
     except Exception:
@@ -246,6 +284,13 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_on
             elif msg.caption:
                 text = msg.caption
 
+            # Link-preview card (separate from msg.media in Pyrogram).
+            # When the message has no text of its own, synthesize text from the
+            # card so the post surfaces in --text-only and downstream agents.
+            web_page = _extract_web_page(msg)
+            if not text and web_page:
+                text = _synth_text_from_web_page(web_page)
+
             # --text-only: skip posts that have no text at all
             if text_only and not text:
                 continue
@@ -261,6 +306,8 @@ async def _fetch_channel(app, channel: str, since: datetime, limit: int, text_on
             }
             if msg.media:
                 entry["media_type"] = str(msg.media)
+            if web_page:
+                entry["web_page"] = web_page
 
             # Fetch comments for this post
             if comments and has_discussion:
@@ -472,6 +519,14 @@ def _print_text(result, since_label):
         for msg in ch_result["messages"]:
             print(f"\n[{msg['date']}] {msg['link']}")
             print(msg["text"][:500] + ("..." if len(msg["text"]) > 500 else ""))
+            wp = msg.get("web_page")
+            if wp:
+                title = wp.get("title") or wp.get("site_name") or ""
+                url = wp.get("url", "")
+                if title:
+                    print(f"  \U0001f517 {title} — {url}")
+                else:
+                    print(f"  \U0001f517 {url}")
             if "comments" in msg and msg["comments"]:
                 print(f"  [{msg['comment_count']} comments]")
                 for c in msg["comments"]:
