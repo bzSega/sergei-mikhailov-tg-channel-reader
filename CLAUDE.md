@@ -173,4 +173,4 @@ Update the task index in this CLAUDE.md (below) every time a task file is create
 | # | Title | Status | File |
 |---|-------|--------|------|
 | 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | done (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
-| 0002 | Surface link-preview / web_page content in reader output | in-progress (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |
+| 0002 | Surface link-preview / web_page content in reader output | done (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |
