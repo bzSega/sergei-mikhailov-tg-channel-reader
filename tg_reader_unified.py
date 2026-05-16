@@ -39,8 +39,9 @@ def main():
             from reader import main as pyrogram_main
             pyrogram_main()
         except ImportError as e:
-            print(f"Error: Pyrogram implementation not available: {e}", file=sys.stderr)
-            print("Install with: pip install pyrogram tgcrypto", file=sys.stderr)
+            print(f"Error: Pyrogram-namespace implementation not available: {e}", file=sys.stderr)
+            print("Install with: pip install pyrofork tgcrypto", file=sys.stderr)
+            print("(Do NOT install pyrogram — its PyPI release is 2.0.106, frozen Aug 2023, and drops content from recent posts. pyrofork is the maintained fork and uses the same `pyrogram` import namespace.)", file=sys.stderr)
             sys.exit(1)
 
 

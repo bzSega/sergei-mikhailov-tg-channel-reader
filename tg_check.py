@@ -243,10 +243,25 @@ def _check_backends() -> tuple:
         except ImportError:
             result[name] = {"installed": False, "version": None}
 
+    # The PyPI `pyrogram` package is pinned at 2.0.106 (Aug 2023) and silently
+    # drops content for posts with TL constructor IDs introduced in May 2026+.
+    # `pyrofork` is the maintained fork — installs into the same import
+    # namespace with a current schema and a different __version__ string.
+    if result["pyrogram"]["installed"] and result["pyrogram"]["version"] == "2.0.106":
+        result["pyrogram"]["outdated"] = True
+        result["pyrogram"]["fix"] = (
+            "pip uninstall pyrogram -y && pip install pyrofork"
+        )
+        problems.append(
+            "Pyrogram 2.0.106 is outdated — recent Telegram posts (May 2026+) will "
+            "come through with empty text/media. "
+            "Fix: pip uninstall pyrogram -y && pip install pyrofork"
+        )
+
     if not result["pyrogram"]["installed"] and not result["telethon"]["installed"]:
         problems.append(
             "No MTProto backend available. "
-            "Install pyrogram or telethon: pip install pyrogram tgcrypto"
+            "Install one: pip install pyrofork tgcrypto (or pip install telethon)"
         )
 
     return result, problems

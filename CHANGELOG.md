@@ -4,28 +4,58 @@
 
 ## [0.9.4] - 2026-05-16
 
-**Recent posts are visible again.** The skill now depends on `pyrofork>=2.3.69` instead of `pyrogram` for its MTProto backend. The `pyrogram` package on PyPI has been frozen at 2.0.106 since August 2023 and does not parse Telegram `Message` TL constructor IDs introduced in May 2026 — for any post encoded with one of the newer constructors, Pyrogram silently returned an empty `message` / `media` / `entities` (only basic metadata like `views` and `forwards` survived). The 0.9.3 `web_page` extraction logic was correct, but the underlying object it read from was already empty. `pyrofork` is a community-maintained drop-in fork with the current TL schema and installs into the same `pyrogram` import namespace — **no source changes in reader.py**, and **session files are format-compatible, so re-auth is not needed**.
+**Recent Telegram posts come through again.** The Pyrogram backend now uses `pyrofork>=2.3.69` (a community-maintained drop-in fork) instead of the stale upstream `pyrogram`. Under 0.9.3 and earlier, recent channel posts arrived with `"text": ""`, `"has_media": false`, no `"web_page"` field — even when the same post displayed fine in the Telegram app.
 
-### Required user action (existing installs)
+### Why this was broken
 
-Pip will not automatically remove `pyrogram` when `pyrofork` is requested — they share the same import namespace and refuse to coexist cleanly. Run once after updating:
+The PyPI `pyrogram` package has been frozen at 2.0.106 since August 2023 and does not know the Telegram `Message` TL constructor IDs introduced in May 2026. For any post encoded with one of the newer constructors, Pyrogram silently parses out only the basic metadata (`id`, `date`, `views`, `forwards`, `edit_date`) and leaves `msg.message` / `msg.media` / `msg.entities` / `msg.web_page` as `None`. The 0.9.3 `web_page` extraction logic was correct in isolation — the parsed `Message` object it read from was already empty.
+
+`pyrofork` is the maintained fork. It ships the current TL schema, installs into the **same `pyrogram` import namespace**, and uses **format-compatible session files** — so no `tg-reader auth` re-run is required.
+
+### How it works after this update
+
+- **CLI surface is unchanged.** Same commands (`tg-reader fetch`, `tg-reader info`, `tg-reader auth`, `tg-reader-check`), same flags, same JSON output schema. An agent that worked with 0.9.3 keeps working with 0.9.4 without code changes.
+- **Same session file** (`~/.tg-reader-session.session`) — no re-auth.
+- **Same config file** (`~/.tg-reader.json`) and same env vars (`TG_API_ID`, `TG_API_HASH`, `TG_USE_TELETHON`, `TG_READ_UNREAD`, `TG_STATE_FILE`) — no config migration.
+- **Same Python imports** in `reader.py` (`from pyrogram import Client`, …) — pyrofork serves the `pyrogram` namespace.
+- `tg-reader-check` now reports the backend as "Pyrofork (pyrogram namespace) 2.3.x" and surfaces a problem with a `fix` field if it detects a left-over upstream `pyrogram 2.0.106`.
+
+### Required user action (existing installs only)
+
+`pip` will not transparently swap `pyrogram` for `pyrofork` because they own the same import namespace. Run once after updating the skill:
 
 ```bash
 pip uninstall pyrogram -y
 pip install --upgrade --force-reinstall sergei-mikhailov-tg-channel-reader
 ```
 
-Or via ClawHub: `clawhub update sergei-mikhailov-tg-channel-reader` then the `pip uninstall pyrogram -y && pip install pyrofork` pair.
+ClawHub users:
+
+```bash
+clawhub update sergei-mikhailov-tg-channel-reader
+pip uninstall pyrogram -y
+pip install pyrofork
+```
+
+After the swap, run `tg-reader-check` — `backends.pyrogram.version` should read 2.3.x (pyrofork), not 2.0.106.
 
 ### Fixed
 
-- Pyrogram backend: posts encoded with TL constructor IDs newer than August 2023 are now parsed correctly. Affected: most channel posts from May 2026 onward, including Instant View link-preview cards and standard text posts that happened to use the new constructor. Symptom in 0.9.3 was `text: ""`, `has_media: false`, no `web_page` field — even though the post displays fine in the Telegram app.
-- Telethon backend is unchanged — Telethon was never affected, its TL schema is kept current.
+- Pyrogram backend: posts encoded with new TL constructor IDs (rolled out in May 2026 and later) are now parsed with their real text, media, entities, and `web_page` data — instead of arriving as empty stubs.
 
 ### Changed
 
-- `setup.py`: `pyrogram>=2.0.0` → `pyrofork>=2.3.69`. `tgcrypto` and `telethon` dependencies unchanged.
-- Existing pyrogram sessions (`~/.tg-reader-session.session`) work as-is with pyrofork — no `tg-reader auth` re-run required.
+- `setup.py`: `pyrogram>=2.0.0` → `pyrofork>=2.3.69` (drop-in fork, same import namespace). `tgcrypto>=1.2.0` and `telethon>=1.24.0` unchanged.
+- `tg_check.py` / `tg-reader-check`: detects an outdated `pyrogram 2.0.106` install and surfaces the migration command in its `problems` array and as a per-backend `outdated`/`fix` field.
+- Install-time error messages in `reader.py`, `tg_reader_unified.py`, and `tg_check.py` now recommend `pip install pyrofork tgcrypto` and explicitly warn against installing upstream `pyrogram`.
+- `setup-tg-reader.sh`: same detection logic — warns when `pyrogram 2.0.106` is found and prints the migration command.
+- `SKILL.md`, `README.md`, `README_TELETHON.md`: install commands and library-selection sections updated to reference pyrofork; setup commands include the pre-emptive `pip uninstall pyrogram` step.
+
+### Not changed (no regression risk)
+
+- Telethon backend is untouched — its TL schema is independent and was never affected.
+- The `web_page` field, text synthesis from card content, comments fetcher, and read-unread tracking — all introduced in 0.9.3 — keep working unchanged.
+- Public CLI flags, JSON output schema, session-file format, config-file format, and env-var contract are identical to 0.9.3.
 
 ---
 
