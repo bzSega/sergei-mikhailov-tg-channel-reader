@@ -93,11 +93,11 @@ python3 -m reader_telethon fetch @durov --since 24h
 
 ## Differences from Pyrogram Version
 
-| Feature | Pyrogram | Telethon |
-|---------|----------|----------|
+| Feature | Pyrofork (default) | Telethon |
+|---------|-------------------|----------|
 | Session file | `~/.tg-reader-session` | `~/.telethon-reader.session` |
 | Command | `tg-reader` | `tg-reader-telethon` |
-| Library | pyrogram + tgcrypto | telethon |
+| Library | pyrofork + tgcrypto (installs as `pyrogram`) | telethon |
 | Maturity | Modern, async-first | Mature, battle-tested |
 
 ## Troubleshooting

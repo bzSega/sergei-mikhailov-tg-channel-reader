@@ -114,10 +114,18 @@ TELETHON_OK=0
 
 if python3 -c "import pyrogram" 2>/dev/null; then
     PYRO_VER=$(python3 -c "import pyrogram; print(pyrogram.__version__)" 2>/dev/null || echo "unknown")
-    ok "Pyrogram $PYRO_VER"
+    # Pyrogram 2.0.106 (Aug 2023) is frozen and silently drops content for posts
+    # with TL constructor IDs introduced in May 2026+. pyrofork is the maintained
+    # fork — installs into the same `pyrogram` namespace with current TL schema.
+    if [ "$PYRO_VER" = "2.0.106" ]; then
+        warn "Pyrogram 2.0.106 detected — outdated, recent posts will come through empty"
+        info "Fix: pip uninstall pyrogram -y && pip install pyrofork"
+    else
+        ok "Pyrofork (pyrogram namespace) $PYRO_VER"
+    fi
     PYROGRAM_OK=1
 else
-    warn "Pyrogram not installed (pip install pyrogram tgcrypto)"
+    warn "Pyrofork not installed (pip install pyrofork tgcrypto)"
 fi
 
 if python3 -c "import telethon" 2>/dev/null; then
@@ -130,7 +138,7 @@ fi
 
 if [ "$PYROGRAM_OK" -eq 0 ] && [ "$TELETHON_OK" -eq 0 ]; then
     fail "No MTProto backend installed — at least one is required"
-    info "Run: pip install pyrogram tgcrypto telethon"
+    info "Run: pip install pyrofork tgcrypto telethon"
     ERRORS=$((ERRORS + 1))
 fi
 

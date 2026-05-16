@@ -42,7 +42,7 @@ clawhub list                         # reads .clawhub/lock.json
 **Type:** OpenClaw skill (Python package published to ClawHub registry)
 **Registry slug:** `sergei-mikhailov-tg-channel-reader`
 **ClawHub display name:** `Telegram Channel Reader` (pass `--name "Telegram Channel Reader"` when publishing)
-**Current version:** 0.9.3
+**Current version:** 0.9.4
 **License:** MIT
 
 ### What it does
@@ -77,11 +77,13 @@ tg-reader-check        → tg_check:main            (offline diagnostic)
 ### Dependencies
 
 ```
-pyrogram>=2.0.0
+pyrofork>=2.3.69    # drop-in replacement for pyrogram (Aug 2023, frozen); current TL schema; same `pyrogram` import namespace; sessions format-compatible
 tgcrypto>=1.2.0
 telethon>=1.24.0
 python>=3.9
 ```
+
+**Important:** Do not declare `pyrogram` as a dependency. The PyPI `pyrogram` package is pinned at 2.0.106 from Aug 2023 and silently drops content for posts with newer TL constructor IDs (rolled out in May 2026 and later). `pyrofork` ships the current schema and installs under the `pyrogram` import namespace, so `from pyrogram import Client` still works unchanged in `reader.py`. Existing user sessions on disk continue to work without re-auth.
 
 ### Environment variables
 
@@ -174,3 +176,4 @@ Update the task index in this CLAUDE.md (below) every time a task file is create
 |---|-------|--------|------|
 | 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | done (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
 | 0002 | Surface link-preview / web_page content in reader output | done (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |
+| 0003 | Migrate Pyrogram backend to pyrofork (restore recent posts) | done (2026-05-16) | [tasks/task-0003.md](tasks/task-0003.md) |

@@ -29,7 +29,7 @@ try:
         InviteHashInvalid,
     )
 except ImportError:
-    print(json.dumps({"error": "pyrogram not installed. Run: pip install pyrogram tgcrypto"}))
+    print(json.dumps({"error": "pyrofork not installed. Run: pip install pyrofork tgcrypto (do NOT install pyrogram — its PyPI release is frozen at 2.0.106 and drops content from recent posts)"}))
     sys.exit(1)
 
 
