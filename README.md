@@ -39,14 +39,17 @@ Then install Python dependencies:
 
 ```bash
 cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto telethon
+# pyrofork is a drop-in replacement for pyrogram with current Telegram TL schema.
+# If pyrogram is already installed, uninstall it first — they share a namespace.
+pip uninstall pyrogram -y 2>/dev/null
+pip install pyrofork tgcrypto telethon
 pip install -e .
 ```
 
 > **Linux users:** if you get `externally-managed-environment` error, use a virtual environment:
 > ```bash
 > python3 -m venv ~/.venv/tg-reader
-> ~/.venv/tg-reader/bin/pip install pyrogram tgcrypto telethon
+> ~/.venv/tg-reader/bin/pip install pyrofork tgcrypto telethon
 > ~/.venv/tg-reader/bin/pip install -e .
 > echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc
 > source ~/.bashrc
@@ -58,7 +61,7 @@ pip install -e .
 cd ~/.openclaw/workspace/skills
 git clone https://github.com/bzSega/sergei-mikhailov-tg-channel-reader
 cd sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto telethon
+pip install pyrofork tgcrypto telethon
 pip install -e .
 ```
 

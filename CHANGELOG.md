@@ -2,6 +2,33 @@
 
 ---
 
+## [0.9.4] - 2026-05-16
+
+**Recent posts are visible again.** The skill now depends on `pyrofork>=2.3.69` instead of `pyrogram` for its MTProto backend. The `pyrogram` package on PyPI has been frozen at 2.0.106 since August 2023 and does not parse Telegram `Message` TL constructor IDs introduced in May 2026 — for any post encoded with one of the newer constructors, Pyrogram silently returned an empty `message` / `media` / `entities` (only basic metadata like `views` and `forwards` survived). The 0.9.3 `web_page` extraction logic was correct, but the underlying object it read from was already empty. `pyrofork` is a community-maintained drop-in fork with the current TL schema and installs into the same `pyrogram` import namespace — **no source changes in reader.py**, and **session files are format-compatible, so re-auth is not needed**.
+
+### Required user action (existing installs)
+
+Pip will not automatically remove `pyrogram` when `pyrofork` is requested — they share the same import namespace and refuse to coexist cleanly. Run once after updating:
+
+```bash
+pip uninstall pyrogram -y
+pip install --upgrade --force-reinstall sergei-mikhailov-tg-channel-reader
+```
+
+Or via ClawHub: `clawhub update sergei-mikhailov-tg-channel-reader` then the `pip uninstall pyrogram -y && pip install pyrofork` pair.
+
+### Fixed
+
+- Pyrogram backend: posts encoded with TL constructor IDs newer than August 2023 are now parsed correctly. Affected: most channel posts from May 2026 onward, including Instant View link-preview cards and standard text posts that happened to use the new constructor. Symptom in 0.9.3 was `text: ""`, `has_media: false`, no `web_page` field — even though the post displays fine in the Telegram app.
+- Telethon backend is unchanged — Telethon was never affected, its TL schema is kept current.
+
+### Changed
+
+- `setup.py`: `pyrogram>=2.0.0` → `pyrofork>=2.3.69`. `tgcrypto` and `telethon` dependencies unchanged.
+- Existing pyrogram sessions (`~/.tg-reader-session.session`) work as-is with pyrofork — no `tg-reader auth` re-run required.
+
+---
+
 ## [0.9.3] - 2026-05-16
 
 **Posts with a link-preview card are no longer invisible.** Many channels (especially news outlets) publish via Telegram's Instant View — the message itself has little or no text, and the article body lives inside the link-preview card. Until now the skill dropped that card data entirely, so the agent reading the JSON saw an empty `text` field and skipped the post. Now the card's title, description, URL, and site name are exposed in a new `web_page` field, and when the message has no text of its own the reader synthesizes one from the card so the post still surfaces in summaries and `--text-only` filters.

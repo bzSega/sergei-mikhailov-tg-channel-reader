@@ -419,8 +419,10 @@ Two MTProto backends are supported:
 
 | Backend | Command | Notes |
 |---------|---------|-------|
-| **Pyrogram** (default) | `tg-reader` or `tg-reader-pyrogram` | Modern, actively maintained |
-| **Telethon** | `tg-reader-telethon` | Alternative if Pyrogram has issues |
+| **Pyrofork** (default) | `tg-reader` or `tg-reader-pyrogram` | Drop-in fork of Pyrogram with current Telegram TL schema. Installs as the `pyrogram` package. The CLI command keeps the `pyrogram` name for backwards compatibility. |
+| **Telethon** | `tg-reader-telethon` | Alternative backend with separate implementation |
+
+> **Why pyrofork instead of pyrogram:** the upstream `pyrogram` package on PyPI (2.0.106, Aug 2023) does not parse Telegram `Message` TL constructor IDs introduced in May 2026, so recent posts come through with empty `message`/`media`/`entities`. `pyrofork` is a community fork that ships the current schema. Sessions are format-compatible — switching does **not** require re-authentication.
 
 Switch persistently: `export TG_USE_TELETHON=true`
 Switch one-time: `tg-reader fetch @channel --since 24h --telethon`
@@ -479,7 +481,9 @@ echo 'export PATH="$HOME/.venv/tg-reader/bin:$PATH"' >> ~/.bashrc && source ~/.b
 
 ```bash
 cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader
-pip install pyrogram tgcrypto telethon && pip install .
+# pyrofork replaces pyrogram; uninstall pyrogram first if it was already installed
+pip uninstall pyrogram -y 2>/dev/null
+pip install pyrofork tgcrypto telethon && pip install .
 openclaw approvals allowlist add --gateway "$(which tg-reader)"
 openclaw approvals allowlist add --gateway "$(which tg-reader-check)"
 ```
@@ -536,7 +540,7 @@ The cron task runs in a **Docker container** — fully autonomous, no agent inte
     "defaults": {
       "sandbox": {
         "docker": {
-          "setupCommand": "clawhub install sergei-mikhailov-tg-channel-reader && cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader && pip install pyrogram tgcrypto telethon && pip install .",
+          "setupCommand": "clawhub install sergei-mikhailov-tg-channel-reader && cd ~/.openclaw/workspace/skills/sergei-mikhailov-tg-channel-reader && pip uninstall pyrogram -y 2>/dev/null; pip install pyrofork tgcrypto telethon && pip install .",
           "env": {
             "TG_API_ID": "YOUR_ID",
             "TG_API_HASH": "YOUR_HASH",
