@@ -24,7 +24,9 @@ clawhub list                         # reads .clawhub/lock.json
 
 ## Key conventions
 
-- **Language:** All code comments, CHANGELOG entries, and commit messages must be in **English**
+- **Open-source project.** Everything checked into this repo is publicly visible on GitHub and the ClawHub registry. Two consequences:
+  - **English only** for every file that lives in the repo: code, code comments, docstrings, CHANGELOG, commit messages, PR titles and bodies, issue text, README, SKILL.md body, files under `tasks/`. Conversational chat in other languages is fine; anything written to disk inside the repo is English.
+  - **No sensitive data ever.** Never paste into a repo-tracked file: real `TG_API_ID` / `TG_API_HASH` / session blobs / `.tg-reader-state.json` content / personal absolute paths (`/Users/<name>/...`, `/home/<name>/...`), real channel IDs the user does not want public, OAuth tokens, or any other secret. Use placeholders (`<your_api_id>`, `~/path/to/...`) and reference auto-memory by file name only — never by its full host-local path. Before saving or committing any new file, scan it for these patterns.
 - **CHANGELOG style:** Lead with a user-friendly description (what changed and why it matters). Technical details (function names, error types, etc.) are allowed after the plain-language summary.
 - `SKILL.md` frontmatter `metadata` must be a **single-line JSON** with the `openclaw` namespace:
   ```
@@ -98,6 +100,7 @@ python>=3.9
 *.session
 *.session-journal
 .tg-reader.json
+.tg-reader-state.json
 .env
 ```
 
@@ -117,3 +120,54 @@ python>=3.9
 - **Never** commit `TG_API_HASH`, `TG_API_ID`, or `*.session` files
 - Session file (`~/.tg-reader-session.session`) grants full Telegram account access
 - Credentials belong in env vars or `~/.tg-reader.json` (outside the repo)
+
+---
+
+## Session workflow rules
+
+### End-of-session retrospective (every successful session, daily)
+
+At the end of every working session — before the user closes the session or moves on — perform a short retrospective and persist the lessons to auto-memory so future sessions can build on them:
+
+1. **What was useful** — what techniques, file locations, commands, or facts proved valuable during this session that were not obvious from the code/CLAUDE.md alone. Save as a `project` or `reference` memory if it's project-knowledge, or `feedback` if it's a working preference.
+2. **What went wrong** — any mistakes, wrong assumptions, dead ends, wasted tool calls, or things the user had to correct. Save as a `feedback` memory with the `**Why:**` line citing the actual incident from this session, so the next session has concrete evidence (not a vague rule).
+3. **What to do differently next time** — translate each mistake into a concrete `**How to apply:**` instruction.
+
+Do not save trivia. Save only items that would change behaviour in a future session. Update existing memory files instead of creating duplicates. Trim or remove memories that the session proved wrong or outdated.
+
+This retrospective is mandatory at session close even if the work felt smooth — successful patterns also deserve a memory entry so I don't drift away from them.
+
+### Code review before commit/push/deploy
+
+For any non-trivial change to this project (new feature, bugfix that touches >1 file, refactor, dependency or version bump, security-relevant edit), the flow is:
+
+1. Make the changes on a feature branch (do **not** commit to `main` directly).
+2. Open a pull request against `main` — `gh pr create` with a clear title and Summary/Test plan body.
+3. Run the `/review` slash command (and `/security-review` when the change touches credentials, session files, env handling, or any code with a security boundary) against that PR.
+4. Read the review output carefully and **fix every legitimate issue** found before proceeding. If a finding is a false positive, explain why in chat.
+5. Only **after** the review issues are resolved, propose to the user the next actions: commit final fixes, push, merge the PR, deploy / publish (e.g. `clawhub publish`, version bump).
+
+Never skip steps 3–4 to save time. The reason this rule exists: small "obvious" changes have shipped bugs and security regressions in this project before (see CHANGELOG entries for 0.8.11, 0.8.12, 0.9.1 — all single-commit fixes for issues that a review would have caught). Treat every change as if a reviewer will see it, because one will.
+
+Trivial exception: typo fixes in markdown, single-line comment edits, and CHANGELOG-only changes may go directly to a commit, but still on a feature branch with a PR — review can be a quick visual scan rather than `/review`, and the user must confirm before push/merge.
+
+### Task tracking — `tasks/` folder
+
+All non-trivial plans and tasks must be recorded as markdown files in the `tasks/` folder at the repo root, named `task-NNNN.md` with a zero-padded 4-digit counter (e.g. `task-0001.md`, `task-0042.md`). Number monotonically — never reuse, never renumber.
+
+Each `task-NNNN.md` file must contain:
+
+- **Title** (`#` heading) — short noun phrase describing the task
+- **Status** — one of `planned` / `in-progress` / `done` / `cancelled`, with a date
+- **Context** — what prompted the task, what problem it solves
+- **Plan** — if a planning step happened (plan mode, `/plan`, or a structured design), paste or link the plan here. If there was no formal plan, write a 2–4 bullet outline of the intended approach.
+- **Result / outcome** — what was actually built, links to commits / PRs / files changed. Fill this in as work progresses, finalize on `done`.
+- **Lessons** — optional; copy here anything that also became an auto-memory entry (cross-reference the memory file name).
+
+Update the task index in this CLAUDE.md (below) every time a task file is created, status-changed, or finished. The index is the authoritative summary so a query like "what tasks did we have?" can be answered by reading just CLAUDE.md, with file dives only when details are needed.
+
+#### Task index
+
+| # | Title | Status | File |
+|---|-------|--------|------|
+| 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | in-progress (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
