@@ -166,8 +166,10 @@ Each `task-NNNN.md` file must contain:
 
 Update the task index in this CLAUDE.md (below) every time a task file is created, status-changed, or finished. The index is the authoritative summary so a query like "what tasks did we have?" can be answered by reading just CLAUDE.md, with file dives only when details are needed.
 
+**Status flips happen inside the same PR that delivers the work — never in a separate follow-up PR.** Concretely: in the final commit before clicking merge, the `Status` line in the task file and the matching index row in CLAUDE.md both flip to `done` (with the merge date), the `Result / outcome` section is rewritten in past tense, and only then does the PR get merged. The trivial exception in the Code-review rule above applies — a `/review` pass is not required for that final flip-to-done commit, just a visual scan. No second "bookkeeping PR" after the fact.
+
 #### Task index
 
 | # | Title | Status | File |
 |---|-------|--------|------|
-| 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | in-progress (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
+| 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | done (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
