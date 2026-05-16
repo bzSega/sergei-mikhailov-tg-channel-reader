@@ -149,7 +149,7 @@ For any non-trivial change to this project (new feature, bugfix that touches >1 
 
 Never skip steps 3–4 to save time. The reason this rule exists: small "obvious" changes have shipped bugs and security regressions in this project before (see CHANGELOG entries for 0.8.11, 0.8.12, 0.9.1 — all single-commit fixes for issues that a review would have caught). Treat every change as if a reviewer will see it, because one will.
 
-Trivial exception: typo fixes in markdown, single-line comment edits, and CHANGELOG-only changes may go directly to a commit, but still on a feature branch with a PR — review can be a quick visual scan rather than `/review`, and the user must confirm before push/merge.
+Trivial exception — for typo fixes in markdown, single-line comment edits, and CHANGELOG-only changes: keep the feature branch and the PR, but a quick visual scan replaces the formal `/review` step. The user must still confirm before push and merge.
 
 ### Task tracking — `tasks/` folder
 
