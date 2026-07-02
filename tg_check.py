@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """
-tg-reader-check — offline diagnostic for tg-channel-reader skill.
-Checks credentials, session files, and backend availability.
+tg-reader-check — diagnostic for tg-channel-reader skill.
+Checks credentials, session files, and backend availability. Offline by
+default; with --online it also verifies that the resolved session actually
+holds an authorized user (connects to Telegram, under the session lock).
 Outputs JSON; exits 0 if healthy, 1 if problems found.
 """
 
 import argparse
+import asyncio
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# tg_session_guard is dependency-light (no Pyrogram/Telethon) — safe to import
+# even when no backend is installed.
+from tg_session_guard import SessionLockTimeout, is_lock_held, load_last_good_info, session_lock
 
 
 # ── Session discovery ────────────────────────────────────────────────────────
@@ -205,21 +212,35 @@ def _check_session(session_name: str, default_session_name: str) -> tuple:
     if not expected_path.exists():
         msg = f"Expected session file not found: {expected_path}"
         if found:
-            suggestion = str(found[0]).removesuffix(".session")
-            result["suggestion"] = f"--session-file {suggestion}"
-            msg += f". Use --session-file {suggestion}"
+            # No blind "switch to this file" suggestion — a found file may be an
+            # empty or never-authorized session. Point at verification instead.
+            candidate = str(found[0]).removesuffix(".session")
+            msg += (
+                f". Found other session file(s) — verify authorization before "
+                f"switching: tg-reader-check --online --session-file {candidate}"
+            )
         problems.append(msg)
 
     # Freshness warning: config points to an older session while a newer one exists
     elif expected_mtime and newest_other and newest_other > expected_mtime:
-        newer = str(newest_other_path).removesuffix(".session")
         problems.append(
             f"Expected session ({expected_path}) is older than {newest_other_path}. "
-            f"You may be using a stale session. "
-            f"Consider: --session-file {newer} or update 'session' in ~/.tg-reader.json"
+            f"A newer file is not necessarily a better one (it may be empty or "
+            f"never authorized) — verify with: tg-reader-check --online"
         )
         result["stale_warning"] = True
         result["newer_session"] = str(newest_other_path)
+
+    # Concurrency + recovery surface
+    result["lock_held"] = is_lock_held(session_name)
+    lkg = load_last_good_info(session_name)
+    if lkg:
+        result["last_good_backup"] = {
+            "path": lkg.get("path"),
+            "verified_at": lkg.get("verified_at"),
+            "username": lkg.get("username"),
+            "backend": lkg.get("backend"),
+        }
 
     return result, problems
 
@@ -262,6 +283,125 @@ def _check_backends() -> tuple:
         problems.append(
             "No MTProto backend available. "
             "Install one: pip install pyrofork tgcrypto (or pip install telethon)"
+        )
+
+    return result, problems
+
+
+# ── Online authorization check (--online) ────────────────────────────────────
+
+async def _probe_pyrogram(session_name: str, api_id, api_hash) -> dict:
+    """Connect with the Pyrogram-namespace backend and report authorization.
+
+    Never prompts (connect(), not start()). Distinguishes "not authorized"
+    from "could not reach Telegram" (authorized: None).
+    """
+    import sqlite3
+    from pyrogram import Client
+    from pyrogram.errors import Unauthorized
+
+    app = Client(session_name, api_id=int(api_id), api_hash=api_hash)
+    try:
+        try:
+            authorized = await app.connect()
+        except sqlite3.Error as e:
+            return {"authorized": False, "detail": f"session file unreadable (corrupted?): {e}"}
+        except Exception as e:
+            return {"authorized": None, "detail": f"could not connect: {type(e).__name__}: {e}"}
+        if not authorized:
+            return {"authorized": False, "detail": "session file holds no authorized user"}
+        try:
+            me = await app.get_me()
+        except Unauthorized as e:
+            return {"authorized": False, "detail": f"Telegram rejected the session key: {type(e).__name__}"}
+        except Exception as e:
+            return {"authorized": None, "detail": f"could not verify: {type(e).__name__}: {e}"}
+        return {"authorized": True, "user": me.username or str(me.id)}
+    finally:
+        try:
+            await app.disconnect()
+        except Exception:
+            pass
+
+
+async def _probe_telethon(session_name: str, api_id, api_hash) -> dict:
+    """Connect with the Telethon backend and report authorization."""
+    import sqlite3
+    from telethon import TelegramClient
+
+    try:
+        client = TelegramClient(session_name, int(api_id), api_hash)
+    except sqlite3.Error as e:
+        return {"authorized": False, "detail": f"session file unreadable (corrupted?): {e}"}
+    try:
+        try:
+            await client.connect()
+        except sqlite3.Error as e:
+            return {"authorized": False, "detail": f"session file unreadable (corrupted?): {e}"}
+        except Exception as e:
+            return {"authorized": None, "detail": f"could not connect: {type(e).__name__}: {e}"}
+        if not await client.is_user_authorized():
+            return {"authorized": False, "detail": "session file holds no authorized user"}
+        try:
+            me = await client.get_me()
+        except Exception as e:
+            return {"authorized": None, "detail": f"could not verify: {type(e).__name__}: {e}"}
+        return {"authorized": True, "user": me.username or str(me.id)}
+    finally:
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+
+
+def _check_authorization(session_name: str, api_id, api_hash) -> tuple:
+    """Online check: does the resolved session hold an authorized user?
+
+    Runs only when the session file exists — connecting with a missing file
+    would CREATE a fresh unauthorized session file as a side effect. Takes the
+    session lock (short timeout) so it never races a running fetch.
+
+    Returns:
+        (authorization_dict, problems_list)
+    """
+    problems: list = []
+    result: dict = {"checked": False}
+
+    if not api_id or not api_hash:
+        result["skipped"] = "credentials missing"
+        return result, problems
+
+    if not Path(f"{session_name}.session").exists():
+        result["skipped"] = "session file does not exist"
+        return result, problems
+
+    use_telethon = os.getenv("TG_USE_TELETHON", "false").lower() in ("true", "1", "yes")
+    probe = _probe_telethon if use_telethon else _probe_pyrogram
+    result["backend"] = "telethon" if use_telethon else "pyrogram"
+
+    try:
+        with session_lock(session_name, timeout=5):
+            verdict = asyncio.run(probe(session_name, api_id, api_hash))
+    except SessionLockTimeout:
+        result["skipped"] = "session is busy (another tg-reader process holds the lock)"
+        return result, problems
+    except ImportError as e:
+        result["skipped"] = f"backend not installed: {e}"
+        return result, problems
+
+    result["checked"] = True
+    result.update(verdict)
+
+    if verdict.get("authorized") is False:
+        problems.append(
+            f"Session is NOT authorized: {verdict.get('detail')}. "
+            "This is about the local file — Telegram did not necessarily revoke "
+            "anything. Recovery: tg-reader restore-session (if a last-good "
+            "backup exists) or interactive tg-reader auth."
+        )
+    elif verdict.get("authorized") is None:
+        problems.append(
+            f"Could not verify authorization (network): {verdict.get('detail')}"
         )
 
     return result, problems
@@ -332,7 +472,7 @@ def _check_tracking(config_file=None) -> tuple:
     return result, problems
 
 
-def run_check(config_file=None, session_file=None) -> dict:
+def run_check(config_file=None, session_file=None, online=False) -> dict:
     """Run all diagnostic checks and return combined result."""
     all_problems: list = []
 
@@ -350,16 +490,33 @@ def run_check(config_file=None, session_file=None) -> dict:
     tracking, tracking_problems = _check_tracking(config_file)
     all_problems.extend(tracking_problems)
 
-    status = "ok" if not all_problems else "error"
-
-    return {
-        "status": status,
+    result = {
         "credentials": credentials,
         "session": session,
         "backends": backends,
         "tracking": tracking,
-        "problems": all_problems,
     }
+
+    if online:
+        api_id = os.environ.get("TG_API_ID")
+        api_hash = os.environ.get("TG_API_HASH")
+        if not api_id or not api_hash:
+            config_path = Path(config_file) if config_file else Path.home() / ".tg-reader.json"
+            if config_path.exists():
+                try:
+                    with open(config_path) as f:
+                        cfg = json.load(f)
+                    api_id = api_id or cfg.get("api_id")
+                    api_hash = api_hash or cfg.get("api_hash")
+                except (json.JSONDecodeError, OSError):
+                    pass
+        authorization, auth_problems = _check_authorization(session_name, api_id, api_hash)
+        all_problems.extend(auth_problems)
+        result["authorization"] = authorization
+
+    result["status"] = "ok" if not all_problems else "error"
+    result["problems"] = all_problems
+    return result
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -367,7 +524,7 @@ def run_check(config_file=None, session_file=None) -> dict:
 def main():
     parser = argparse.ArgumentParser(
         prog="tg-reader-check",
-        description="Offline diagnostic check for tg-channel-reader skill",
+        description="Diagnostic check for tg-channel-reader skill (offline by default)",
     )
     parser.add_argument(
         "--config-file",
@@ -379,9 +536,15 @@ def main():
         default=None,
         help="Path to session file (overrides default session path)",
     )
+    parser.add_argument(
+        "--online",
+        action="store_true",
+        help="Also connect to Telegram and verify the session is authorized "
+             "(never prompts; takes the session lock)",
+    )
 
     args = parser.parse_args()
-    result = run_check(args.config_file, args.session_file)
+    result = run_check(args.config_file, args.session_file, online=args.online)
     print(json.dumps(result, indent=2))
     sys.exit(0 if result["status"] == "ok" else 1)
 
