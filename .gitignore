@@ -9,3 +9,8 @@ __pycache__/
 dist/
 build/
 .DS_Store
+*.session.lock
+*.session.last-good
+*.session.last-good.json
+*.session.bak-*
+.claude/

@@ -42,7 +42,7 @@ clawhub list                         # reads .clawhub/lock.json
 **Type:** OpenClaw skill (Python package published to ClawHub registry)
 **Registry slug:** `sergei-mikhailov-tg-channel-reader`
 **ClawHub display name:** `Telegram Channel Reader` (pass `--name "Telegram Channel Reader"` when publishing)
-**Current version:** 0.9.4
+**Current version:** 0.10.0
 **License:** MIT
 
 ### What it does
@@ -58,8 +58,9 @@ Reads posts from Telegram channels via MTProto (official protocol). Supports Pyr
 | `reader.py` | Pyrogram implementation |
 | `reader_telethon.py` | Telethon implementation |
 | `tg_reader_unified.py` | Unified entry point — auto-selects backend |
-| `tg_check.py` | Offline diagnostic script (`tg-reader-check`) |
+| `tg_check.py` | Diagnostic script (`tg-reader-check`); offline by default, `--online` verifies authorization |
 | `tg_state.py` | Read-tracking state management (load/save per-channel last_read_id) |
+| `tg_session_guard.py` | Session lock, timestamped backups, last-known-good snapshot/restore (no heavy deps) |
 | `CHANGELOG.md` | Version history |
 | `DISCLAIMER.md` | Legal disclaimer |
 | `README_TELETHON.md` | Telethon-specific docs |
@@ -101,6 +102,10 @@ python>=3.9
 ```
 *.session
 *.session-journal
+*.session.lock
+*.session.last-good
+*.session.last-good.json
+*.session.bak-*
 .tg-reader.json
 .tg-reader-state.json
 .env
@@ -177,3 +182,4 @@ Update the task index in this CLAUDE.md (below) every time a task file is create
 | 0001 | Audit project + add session workflow & task-tracking rules to CLAUDE.md | done (2026-05-16) | [tasks/task-0001.md](tasks/task-0001.md) |
 | 0002 | Surface link-preview / web_page content in reader output | done (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |
 | 0003 | Migrate Pyrogram backend to pyrofork (restore recent posts) | done (2026-05-16) | [tasks/task-0003.md](tasks/task-0003.md) |
+| 0004 | Session hardening: non-interactive auth check, locking, last-known-good recovery | done (2026-07-02) | [tasks/task-0004.md](tasks/task-0004.md) |
