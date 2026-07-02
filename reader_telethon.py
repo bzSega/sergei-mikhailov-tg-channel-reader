@@ -10,9 +10,9 @@ import json
 import os
 import sqlite3
 import sys
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-
 from tg_session_guard import (
     NetworkError,
     NotAuthorizedError,
@@ -181,9 +181,6 @@ def get_config(config_file=None, session_file=None):
 
 # ── Non-interactive client ───────────────────────────────────────────────────
 
-from contextlib import asynccontextmanager
-
-
 @asynccontextmanager
 async def _authorized_client(session_name: str, api_id: int, api_hash: str):
     """Open a client with NO interactive auth path — never prompts for a phone.
@@ -195,12 +192,14 @@ async def _authorized_client(session_name: str, api_id: int, api_hash: str):
     Raises NotAuthorizedError / NetworkError; the two are never conflated:
     a network failure says nothing about session validity, and reporting it
     as an auth problem pushes agents toward destructive re-auth.
+
+    On a clean exit the now-verified session is snapshotted as last-known-good
+    (client disconnected first, caller still holds the lock). This lives here,
+    not in each caller, so every authorized path gets the snapshot — including
+    channel-error returns, where the session itself is fine.
     """
     try:
         client = TelegramClient(session_name, api_id, api_hash)
-    except sqlite3.Error as e:
-        raise NotAuthorizedError(f"Session file could not be opened (corrupted?): {e}")
-    try:
         await client.connect()
     except sqlite3.Error as e:
         raise NotAuthorizedError(f"Session file could not be opened (corrupted?): {e}")
@@ -209,6 +208,7 @@ async def _authorized_client(session_name: str, api_id: int, api_hash: str):
     except Exception as e:
         # Unknown failure — default to "network", the non-destructive verdict.
         raise NetworkError(f"{type(e).__name__}: {e}")
+    body_ok = False
     try:
         if not await client.is_user_authorized():
             raise NotAuthorizedError(
@@ -221,8 +221,11 @@ async def _authorized_client(session_name: str, api_id: int, api_hash: str):
         except Exception as e:
             raise NetworkError(f"Could not verify authorization: {type(e).__name__}: {e}")
         yield client, me
+        body_ok = True
     finally:
         await client.disconnect()
+    if body_ok:
+        save_last_good(session_name, user_id=me.id, username=me.username, backend="telethon")
 
 
 def _print_session_error(session_name: str, error_type: str, message: str) -> None:
@@ -531,9 +534,7 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, text_only:
             if i < len(channels) - 1:
                 await asyncio.sleep(delay)
 
-    # Client is disconnected (file quiesced) and the CLI still holds the
-    # session lock — safe moment to snapshot the verified-good session.
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="telethon")
+    # _authorized_client snapshots the verified session as last-good on exit.
     return results
 
 
@@ -549,7 +550,7 @@ async def fetch_single(channel: str, since: datetime, limit: int, text_only: boo
         result = await fetch_messages(client, channel, since, limit, text_only,
                                       comments=comments, comment_limit=comment_limit,
                                       comment_delay=comment_delay, min_id=min_id)
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="telethon")
+    # _authorized_client snapshots the verified session as last-good on exit.
     return result
 
 
@@ -639,7 +640,8 @@ def restore_session(config_file=None, session_file=None):
         }, indent=2))
         sys.exit(1)
 
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="telethon")
+    # _verify_authorized already refreshed the last-good snapshot via the
+    # context manager — no explicit save needed here.
     print(json.dumps({
         "status": "restored",
         "verified": True,

@@ -65,7 +65,8 @@ def _check_credentials(config_file=None, session_file=None) -> tuple:
     """Check credential availability without exiting.
 
     Returns:
-        (credentials_dict, resolved_session_name, default_session_name, problems_list)
+        (credentials_dict, resolved_session_name, default_session_name,
+         resolved_api_id, resolved_api_hash, problems_list)
     """
     problems: list = []
 
@@ -141,7 +142,10 @@ def _check_credentials(config_file=None, session_file=None) -> tuple:
     if default_session.endswith(".session"):
         default_session = default_session[: -len(".session")]
 
-    return result, session_name, default_session, problems
+    # Return the resolved credentials too, so the --online check reuses this
+    # single resolution instead of re-reading env/config and risking a
+    # self-contradictory report.
+    return result, session_name, default_session, api_id, api_hash, problems
 
 
 # ── Session check ────────────────────────────────────────────────────────────
@@ -476,8 +480,8 @@ def run_check(config_file=None, session_file=None, online=False) -> dict:
     """Run all diagnostic checks and return combined result."""
     all_problems: list = []
 
-    credentials, session_name, default_session, cred_problems = _check_credentials(
-        config_file, session_file
+    credentials, session_name, default_session, api_id, api_hash, cred_problems = (
+        _check_credentials(config_file, session_file)
     )
     all_problems.extend(cred_problems)
 
@@ -498,18 +502,8 @@ def run_check(config_file=None, session_file=None, online=False) -> dict:
     }
 
     if online:
-        api_id = os.environ.get("TG_API_ID")
-        api_hash = os.environ.get("TG_API_HASH")
-        if not api_id or not api_hash:
-            config_path = Path(config_file) if config_file else Path.home() / ".tg-reader.json"
-            if config_path.exists():
-                try:
-                    with open(config_path) as f:
-                        cfg = json.load(f)
-                    api_id = api_id or cfg.get("api_id")
-                    api_hash = api_hash or cfg.get("api_hash")
-                except (json.JSONDecodeError, OSError):
-                    pass
+        # Reuse the credentials already resolved by _check_credentials — no
+        # second env/config read that could disagree with the report above.
         authorization, auth_problems = _check_authorization(session_name, api_id, api_hash)
         all_problems.extend(auth_problems)
         result["authorization"] = authorization

@@ -200,6 +200,12 @@ async def _authorized_client(session_name: str, api_id: int, api_hash: str):
     Raises NotAuthorizedError / NetworkError; the two are never conflated:
     a network failure says nothing about session validity, and reporting it
     as an auth problem pushes agents toward destructive re-auth.
+
+    On a clean exit (the body ran without raising) the now-verified session is
+    snapshotted as last-known-good — the client is disconnected first so the
+    SQLite file is quiesced, and the caller still holds the session lock. This
+    lives here, not in each caller, so every authorized path gets the snapshot
+    (including channel-error returns, where the session itself is fine).
     """
     app = Client(session_name, api_id=api_id, api_hash=api_hash, **_DEVICE)
     try:
@@ -228,14 +234,18 @@ async def _authorized_client(session_name: str, api_id: int, api_hash: str):
     except Exception as e:
         await app.disconnect()
         raise NetworkError(f"Could not verify authorization: {type(e).__name__}: {e}")
+    body_ok = False
     try:
         await app.initialize()
         try:
             yield app, me
+            body_ok = True
         finally:
             await app.terminate()
     finally:
         await app.disconnect()
+    if body_ok:
+        save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
 
 
 def _print_session_error(session_name: str, error_type: str, message: str) -> None:
@@ -513,9 +523,7 @@ async def fetch_messages(channel: str, since: datetime, limit: int, text_only: b
         result = await _fetch_channel(app, channel, since, limit, text_only,
                                       comments=comments, comment_limit=comment_limit,
                                       comment_delay=comment_delay, min_id=min_id)
-    # Client is disconnected (file quiesced) and the CLI still holds the
-    # session lock — safe moment to snapshot the verified-good session.
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
+    # _authorized_client snapshots the verified session as last-good on exit.
     return result
 
 
@@ -555,7 +563,7 @@ async def fetch_multiple(channels: list, since: datetime, limit: int, text_only:
             if i < len(channels) - 1:
                 await asyncio.sleep(delay)
 
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
+    # _authorized_client snapshots the verified session as last-good on exit.
     return results
 
 
@@ -605,7 +613,8 @@ async def fetch_info(channel: str, config_file=None, session_file=None):
                 f"Unexpected error: {e}",
                 "report_to_user",
             )
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
+    # _authorized_client snapshots the verified session as last-good on exit —
+    # this includes the channel-error returns above (the session is fine).
     return result
 
 
@@ -682,7 +691,8 @@ def restore_session(config_file=None, session_file=None):
         }, indent=2))
         sys.exit(1)
 
-    save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
+    # _verify_authorized already refreshed the last-good snapshot via the
+    # context manager — no explicit save needed here.
     print(json.dumps({
         "status": "restored",
         "verified": True,
