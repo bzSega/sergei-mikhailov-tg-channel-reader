@@ -85,10 +85,16 @@ def _sha256(path: Path) -> str:
 
 
 def _copy_600(src: Path, dst: Path) -> None:
-    """Copy src to dst atomically with 0600 permissions."""
+    """Copy src to dst atomically with 0600 permissions.
+
+    The temp file is created 0600 from the first byte — never a window where
+    session content sits on disk with default-umask permissions.
+    """
     tmp = dst.with_name(dst.name + ".tmp")
-    shutil.copyfile(src, tmp)
-    os.chmod(tmp, 0o600)
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "wb") as out, open(src, "rb") as inp:
+        shutil.copyfileobj(inp, out)
     os.replace(tmp, dst)
 
 
@@ -207,10 +213,11 @@ def save_last_good(session_name: str, user_id=None, username=None, backend=None)
         }
         mpath = _manifest_path(session_name)
         tmp = mpath.with_name(mpath.name + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
+        tmp.unlink(missing_ok=True)
+        fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
             f.write("\n")
-        os.chmod(tmp, 0o600)
         os.replace(tmp, mpath)
         return str(dst)
     except OSError as e:
