@@ -1,6 +1,6 @@
 ---
 name: sergei-mikhailov-tg-channel-reader
-description: Read posts and comments from Telegram channels via MTProto (Pyrogram or Telethon). Fetch recent messages and discussion replies from public or private channels by time window.
+description: Let your agent read and monitor Telegram channels: fetch posts, captions, link previews, and comments from public or private channels and turn them into daily digests, summaries, and alerts. JSON or text output, unread tracking, via MTProto (Pyrogram or Telethon).
 metadata: {"openclaw": {"emoji": "📡", "requires": {"bins": ["tg-reader", "tg-reader-check"], "env": ["TG_API_ID", "TG_API_HASH"]}, "primaryEnv": "TG_API_HASH"}}
 ---
 
