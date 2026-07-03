@@ -844,11 +844,24 @@ async def setup_auth(config_file=None, session_file=None, phone=None,
         })
         return
 
-    # Preserve then clear any stale/dead session so send_code starts clean.
-    backup = backup_session(session_name)
-    moved = _move_dead_session(session_name)
+    # Log in on a SCRATCH session first, then swap it into place only after a
+    # verified success. A failed or aborted login must never take down a working
+    # session (that's the class of bug session-hardening exists to prevent).
+    moved = None
+    if force and existing is not None:
+        work = f"{session_name}.new-{time.strftime('%Y%m%d-%H%M%S')}"
+        for suf in (".session", ".session-journal"):
+            try:
+                os.remove(work + suf)
+            except OSError:
+                pass
+    else:
+        # Fresh login into the real path; a dead auth key would block send_code,
+        # so move any dead file aside first (never delete).
+        work = session_name
+        moved = _move_dead_session(session_name)
 
-    app = Client(session_name, api_id=api_id, api_hash=api_hash, proxy=_PROXY, **_DEVICE)
+    app = Client(work, api_id=api_id, api_hash=api_hash, proxy=_PROXY, **_DEVICE)
     await app.connect()
     try:
         try:
@@ -900,6 +913,19 @@ async def setup_auth(config_file=None, session_file=None, phone=None,
             await app.disconnect()
         except Exception:
             pass
+
+    # Login verified (get_me succeeded). If we logged into a scratch session,
+    # back up the current live one and atomically swap the new session in.
+    backup = None
+    if work != session_name:
+        backup = backup_session(session_name)
+        try:
+            os.replace(f"{work}.session", f"{session_name}.session")
+        except OSError as e:
+            _auth_emit({"stage": "error", "reason": "swap_failed",
+                        "message": f"Logged in but could not install the new session: {e}. "
+                                   f"New session left at {work}.session"})
+            return
 
     if remember_phone:
         _save_phone_to_config(config_file, phone)
