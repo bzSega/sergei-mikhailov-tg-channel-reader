@@ -1,6 +1,6 @@
 ---
 name: sergei-mikhailov-tg-channel-reader
-description: Let your agent read and monitor Telegram channels: fetch posts, captions, link previews, and comments from public or private channels and turn them into daily digests, summaries, and alerts. JSON or text output, unread tracking, via MTProto (Pyrogram or Telethon).
+description: Let your agent read and monitor Telegram channels — posts, captions, link previews, and comments from public or private channels — and turn them into digests, summaries, and alerts. Unread tracking, JSON or text output, SOCKS5-proxy support, and a guided login the agent can run for the user. MTProto (Pyrogram or Telethon).
 metadata: {"openclaw": {"emoji": "📡", "requires": {"bins": ["tg-reader", "tg-reader-check"], "env": ["TG_API_ID", "TG_API_HASH"]}, "primaryEnv": "TG_API_HASH"}}
 ---
 
