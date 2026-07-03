@@ -2,6 +2,14 @@
 
 ---
 
+## [0.11.1] - 2026-07-03
+
+**Fix: `tg-reader auth` crashed at the `code_sent` stage.** The staged onboarding flow added in 0.11.0 derived the `code_type` field from the Pyrogram `SentCode.type` object, which could resolve to a non-serializable value — so emitting the stage raised `TypeError: Object of type type is not JSON serializable` and the process exited. Because the crash happened *after* `send_code`, 0.11.0 would send the login code but then die before sign-in, making the agent-driven login impossible to complete.
+
+`code_type` is now always emitted as a string. Verified live end-to-end (send code → sign in → `authorized`).
+
+---
+
 ## [0.11.0] - 2026-07-03
 
 **Agent-drivable onboarding — an AI agent can set up authentication *for* the user.** Until now the only way to log in was `tg-reader auth`, an interactive command whose phone/code prompts are invisible when driven from an agent or a piped/exec context (the prompt buffers and never shows). So a human always had to sit at the terminal. Now the login is a structured, staged flow an agent can run end-to-end.

@@ -872,7 +872,7 @@ async def setup_auth(config_file=None, session_file=None, phone=None,
             return
         _auth_emit({
             "stage": "code_sent",
-            "code_type": getattr(getattr(sent, "type", None), "value", str(getattr(sent, "type", "unknown"))),
+            "code_type": str(getattr(sent, "type", "unknown")),
             "next_action": "provide_code",
             "message": "Telegram sent a login code (check the Telegram app on that "
                        "account, or SMS). Ask the user for it and provide it via "
