@@ -10,6 +10,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -41,6 +42,10 @@ try:
         InviteHashExpired,
         InviteHashInvalid,
         Unauthorized,
+        SessionPasswordNeeded,
+        PhoneCodeInvalid,
+        PhoneCodeExpired,
+        PhoneNumberInvalid,
     )
 except ImportError:
     print(json.dumps({"error": "pyrofork not installed. Run: pip install pyrofork tgcrypto (do NOT install pyrogram — its PyPI release is frozen at 2.0.106 and drops content from recent posts)"}))
@@ -660,29 +665,261 @@ async def fetch_info(channel: str, config_file=None, session_file=None):
 
 # ── Auth setup ───────────────────────────────────────────────────────────────
 
-async def setup_auth(config_file=None, session_file=None):
-    """Interactive first-time auth — creates session file.
+# ── Onboarding auth (agent-drivable, staged, non-interactive) ────────────────
+#
+# A first-time login needs three things Telegram will only give a human: the
+# phone number, the login code Telegram sends, and (if enabled) the cloud
+# 2FA password. This flow lets an AI agent collect those from the user and
+# drive the login on their behalf — one live process, structured JSON stages,
+# never a blocking `ainput` prompt (which is invisible in agent/exec contexts).
+#
+# Stages emitted to stdout (one JSON object per line, flushed):
+#   {"stage":"need_phone",   "next_action":"provide_phone"}
+#   {"stage":"code_sent",    "next_action":"provide_code", "code_type":"app"|"sms"}
+#   {"stage":"need_2fa",     "next_action":"provide_password"}
+#   {"stage":"authorized",   "user":..., "user_id":...}
+#   {"stage":"already_authorized", "user":...}
+#   {"stage":"error", "reason":"phone_invalid"|"code_invalid"|"code_expired"|...}
+#
+# Secrets (code, password) are read from a file (`--code-file`/`--password-file`,
+# polled) or stdin — never passed on argv, so they don't leak into `ps`/logs.
 
-    An existing session file is backed up first (auth overwrites it), and the
-    fresh session is verified with get_me() and snapshotted as last-good.
+def _auth_emit(obj):
+    """Emit a stage as one flushed JSON line; also mirror to a progress file
+    (TG_AUTH_PROGRESS) so an agent can read stages even if stdout is buffered
+    through wrapper layers."""
+    line = json.dumps(obj, ensure_ascii=False)
+    print(line, flush=True)
+    progress = os.environ.get("TG_AUTH_PROGRESS")
+    if progress:
+        try:
+            with open(progress, "a") as f:
+                f.write(line + "\n")
+        except OSError:
+            pass
+
+
+async def _read_secret(secret_file, timeout=900):
+    """Read a code/password from a file (polled until non-empty) or, if no file
+    is given, from stdin. Returns the stripped value, or None on timeout."""
+    if secret_file:
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            try:
+                if os.path.exists(secret_file):
+                    val = open(secret_file).read().strip()
+                    if val:
+                        return val
+            except OSError:
+                pass
+            await asyncio.sleep(1.5)
+        return None
+    # stdin fallback — run the blocking read off the event loop
+    loop = asyncio.get_event_loop()
+    try:
+        line = await loop.run_in_executor(None, sys.stdin.readline)
+    except Exception:
+        return None
+    return line.strip() or None
+
+
+async def _probe_authorized(session_name, api_id, api_hash):
+    """Return the authorized user for an existing session, or None if the file
+    is missing/unauthorized/unreachable. Never prompts."""
+    if not Path(f"{session_name}.session").exists():
+        return None
+    app = Client(session_name, api_id=api_id, api_hash=api_hash, proxy=_PROXY, **_DEVICE)
+    try:
+        if not await app.connect():
+            return None
+        try:
+            return await app.get_me()
+        except Exception:
+            return None
+    except Exception:
+        return None
+    finally:
+        try:
+            await app.disconnect()
+        except Exception:
+            pass
+
+
+def _move_dead_session(session_name):
+    """Move an existing (unauthorized) session file aside so a fresh login can
+    start with a clean auth key. Never deletes."""
+    src = Path(f"{session_name}.session")
+    if not src.exists():
+        return None
+    dst = f"{session_name}.session.dead-{time.strftime('%Y%m%d-%H%M%S')}"
+    try:
+        src.rename(dst)
+        return dst
+    except OSError:
+        return None
+
+
+def _save_phone_to_config(config_file, phone):
+    """Persist the phone into the config JSON so future re-auths don't need to
+    ask for it again. Best-effort; failures are non-fatal."""
+    path = Path(config_file) if config_file else Path.home() / ".tg-reader.json"
+    try:
+        cfg = json.load(open(path)) if path.exists() else {}
+        cfg["phone"] = phone
+        with open(path, "w") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+        return True
+    except (OSError, json.JSONDecodeError):
+        return False
+
+
+def auth_guide(config_file=None, session_file=None):
+    """Print human step-by-step instructions so the USER can authorize the
+    skill themselves (used when they'd rather not have the agent do it)."""
+    _, _, session_name = get_config(config_file, session_file)
+    print(f"""tg-channel-reader — authorize it yourself (about 1 minute)
+
+You'll log a Telegram account into the skill so it can read channels for you.
+The login session is stored locally on this machine (OpenClaw), in
+  {session_name}.session
+It never leaves the machine and is not uploaded anywhere.
+
+1. In a terminal on this machine, run:
+     tg-reader auth --phone +7XXXXXXXXXX
+   (use the phone number of the Telegram account that will read channels)
+
+2. Telegram sends you a LOGIN CODE — usually inside the Telegram app itself
+   (the "Telegram" service chat), sometimes by SMS. When prompted, paste it.
+
+3. If that account has a cloud password (Two-Step Verification), you'll be
+   asked for it too. Enter it.
+
+4. Verify it worked:
+     tg-reader-check --online
+   You should see  "authorized": true.
+
+If direct Telegram access is blocked on this host, set a SOCKS5 proxy first
+(see "SOCKS5 proxy" in the skill docs): add "socks_proxy": "127.0.0.1:1080"
+to ~/.tg-reader.json (or export TG_PROXY=...).""")
+
+
+async def setup_auth(config_file=None, session_file=None, phone=None,
+                     code_file=None, password_file=None,
+                     remember_phone=False, force=False):
+    """Agent-drivable staged login. See the module comment above for stages.
+
+    One live process: send code -> wait for the code (file/stdin) -> sign in
+    -> (if needed) wait for the 2FA password -> verify. The existing session is
+    backed up first; a dead/unauthorized session is moved aside so the fresh
+    login starts clean. Runs under the session lock held by main().
     """
     api_id, api_hash, session_name = get_config(config_file, session_file)
-    backup = backup_session(session_name)
-    if backup:
-        print(f"Existing session backed up to: {backup}")
-    print(f"Starting auth for session: {session_name}")
-    print("You will receive a code in Telegram. Enter it when prompted.")
-    async with Client(session_name, api_id=api_id, api_hash=api_hash, proxy=_PROXY, **_DEVICE) as app:
-        me = await app.get_me()
-        status = {
-            "status": "authenticated",
-            "user": me.username or str(me.id),
+
+    # Already authorized? Don't disturb a working session unless forced.
+    existing = await _probe_authorized(session_name, api_id, api_hash)
+    if existing is not None and not force:
+        _auth_emit({
+            "stage": "already_authorized",
+            "user": existing.username or str(existing.id),
+            "user_id": existing.id,
             "session_file": f"{session_name}.session",
-        }
-        if backup:
-            status["previous_session_backup"] = backup
-        print(json.dumps(status))
+            "message": "Session is already authorized — nothing to do. Pass --force to re-login.",
+        })
+        return
+
+    # Need the phone before we can send a code.
+    phone = (phone or "").strip()
+    if not phone:
+        _auth_emit({
+            "stage": "need_phone",
+            "next_action": "provide_phone",
+            "message": "Ask the user for the phone number of the Telegram reader "
+                       "account (international format, e.g. +79991234567), then re-run "
+                       "with --phone. The login session is stored locally on this "
+                       "machine (OpenClaw) and never uploaded.",
+        })
+        return
+
+    # Preserve then clear any stale/dead session so send_code starts clean.
+    backup = backup_session(session_name)
+    moved = _move_dead_session(session_name)
+
+    app = Client(session_name, api_id=api_id, api_hash=api_hash, proxy=_PROXY, **_DEVICE)
+    await app.connect()
+    try:
+        try:
+            sent = await app.send_code(phone)
+        except PhoneNumberInvalid:
+            _auth_emit({"stage": "error", "reason": "phone_invalid",
+                        "message": f"Telegram rejected the phone number: {phone}"})
+            return
+        _auth_emit({
+            "stage": "code_sent",
+            "code_type": getattr(getattr(sent, "type", None), "value", str(getattr(sent, "type", "unknown"))),
+            "next_action": "provide_code",
+            "message": "Telegram sent a login code (check the Telegram app on that "
+                       "account, or SMS). Ask the user for it and provide it via "
+                       "--code-file or stdin.",
+        })
+        code = await _read_secret(code_file)
+        if not code:
+            _auth_emit({"stage": "error", "reason": "timeout_code",
+                        "message": "No login code was provided in time."})
+            return
+        try:
+            await app.sign_in(phone, sent.phone_code_hash, code)
+        except SessionPasswordNeeded:
+            _auth_emit({
+                "stage": "need_2fa",
+                "next_action": "provide_password",
+                "message": "This account has a cloud password (Two-Step Verification). "
+                           "Ask the user for it and provide it via --password-file or stdin.",
+            })
+            pw = await _read_secret(password_file)
+            if not pw:
+                _auth_emit({"stage": "error", "reason": "timeout_2fa",
+                            "message": "No 2FA password was provided in time."})
+                return
+            await app.check_password(pw)
+        except PhoneCodeInvalid:
+            _auth_emit({"stage": "error", "reason": "code_invalid",
+                        "message": "The login code was wrong. Re-run auth to get a new code."})
+            return
+        except PhoneCodeExpired:
+            _auth_emit({"stage": "error", "reason": "code_expired",
+                        "message": "The login code expired. Re-run auth to get a new code."})
+            return
+
+        me = await app.get_me()
+    finally:
+        try:
+            await app.disconnect()
+        except Exception:
+            pass
+
+    if remember_phone:
+        _save_phone_to_config(config_file, phone)
+
     save_last_good(session_name, user_id=me.id, username=me.username, backend="pyrogram")
+
+    result = {
+        "stage": "authorized",
+        "user": me.username or str(me.id),
+        "user_id": me.id,
+        "session_file": f"{session_name}.session",
+        "message": "Done — the account is authorized and the skill can read channels. "
+                   "The session is stored locally on this machine (OpenClaw); nothing "
+                   "was uploaded.",
+    }
+    if backup:
+        result["previous_session_backup"] = backup
+    if moved:
+        result["dead_session_moved_to"] = moved
+    _auth_emit(result)
 
 
 # ── Session restore ──────────────────────────────────────────────────────────
@@ -877,7 +1114,19 @@ def main():
     info_p.add_argument("channel", help="Channel username e.g. @durov")
 
     # auth
-    sub.add_parser("auth", help="Authenticate with Telegram (first-time setup)")
+    auth_p = sub.add_parser("auth", help="Authenticate with Telegram (agent-drivable onboarding)")
+    auth_p.add_argument("--phone", default=None,
+                        help="Reader account phone, international format (+79991234567)")
+    auth_p.add_argument("--code-file", default=None,
+                        help="File the login code is read from (polled). Omit to read stdin.")
+    auth_p.add_argument("--password-file", default=None,
+                        help="File the 2FA cloud password is read from (polled). Omit to read stdin.")
+    auth_p.add_argument("--remember-phone", action="store_true",
+                        help="Save the phone into the config for future re-auths")
+    auth_p.add_argument("--force", action="store_true",
+                        help="Re-login even if the session is already authorized")
+    auth_p.add_argument("--guide", action="store_true",
+                        help="Print step-by-step instructions for the user to self-authorize, then exit")
 
     # restore-session
     sub.add_parser("restore-session",
@@ -886,6 +1135,12 @@ def main():
     args = parser.parse_args()
     cf = args.config_file
     sf = args.session_file
+
+    # --guide only prints instructions for the human — no session, no lock.
+    if args.cmd == "auth" and getattr(args, "guide", False):
+        auth_guide(cf, sf)
+        return
+
     _, _, session_name = get_config(cf, sf)
 
     if args.cmd != "auth":
@@ -920,7 +1175,14 @@ def _dispatch(args, cf, sf):
         return
 
     if args.cmd == "auth":
-        asyncio.run(setup_auth(cf, sf))
+        asyncio.run(setup_auth(
+            cf, sf,
+            phone=args.phone,
+            code_file=args.code_file,
+            password_file=args.password_file,
+            remember_phone=args.remember_phone,
+            force=args.force,
+        ))
         return
 
     if args.cmd == "restore-session":
