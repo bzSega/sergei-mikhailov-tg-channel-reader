@@ -2,7 +2,7 @@
 
 ---
 
-## [0.11.0] - 2026-07-03
+## [0.10.1] - 2026-07-03
 
 **SOCKS5 proxy support for MTProto.** Some networks/hosts filter direct MTProto (TCP 443 to Telegram DCs), surfacing as persistent `Connection timed out` even when the internet works. The skill can now route through a local SOCKS5 proxy.
 
