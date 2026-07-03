@@ -209,6 +209,27 @@ Env vars take priority over the config file. This lets you enable read_unread vi
 
 State is stored in `~/.tg-reader-state.json` (configurable via `"state_file"` in config, `TG_STATE_FILE` env var, or `--state-file` flag).
 
+### SOCKS5 proxy (for hosts that block direct MTProto)
+
+Some networks/hosts filter direct MTProto (TCP 443 to Telegram DCs), which shows
+up as `Connection timed out` even when the internet works. Route the client
+through a local SOCKS5 proxy:
+
+```json
+{
+  "api_id": 12345,
+  "api_hash": "...",
+  "socks_proxy": "127.0.0.1:1080"
+}
+```
+
+Accepted forms: `host:port` (SOCKS5 by default), `socks5://host:port`, or
+`socks5://user:pass@host:port`. Env var `TG_PROXY` overrides the config value
+(handy for setting the proxy via `openclaw.json` without editing the file).
+When unset, the client connects directly (unchanged behavior). Applies to both
+backends (Pyrogram/Telethon) and to `tg-reader-check`, which reports the
+resolved proxy in `credentials.proxy`.
+
 ### Behavior
 
 - **`--since` is not needed** when `read_unread` is enabled — the skill automatically returns all unread posts regardless of time

@@ -2,6 +2,23 @@
 
 ---
 
+## [0.10.1] - 2026-07-03
+
+**SOCKS5 proxy support for MTProto.** Some networks/hosts filter direct MTProto (TCP 443 to Telegram DCs), surfacing as persistent `Connection timed out` even when the internet works. The skill can now route through a local SOCKS5 proxy.
+
+### Why this was broken
+
+- The skill read only `api_id`/`api_hash`/`session` from config; a `socks_proxy` setting had no effect because the value was never passed to the client. On a host with direct MTProto filtered, every run timed out and looked like a network/Telegram outage rather than a missing route.
+
+### How it works after this update
+
+- New `socks_proxy` config key (and `TG_PROXY` env override, which takes priority). Accepted forms: `host:port` (SOCKS5 by default), `socks5://host:port`, `socks5://user:pass@host:port`.
+- The parsed proxy is passed to every client on both backends — Pyrogram (`reader.py`) and Telethon (`reader_telethon.py`), fetch/info/auth paths — and to the `tg-reader-check` online probe.
+- `tg-reader-check` now reports the resolved proxy as `credentials.proxy`.
+- Fully backward compatible: with no `socks_proxy`/`TG_PROXY` set, the client connects directly exactly as before. Telethon uses the native python-socks dict form (no PySocks dependency).
+
+---
+
 ## [0.10.0] - 2026-07-02
 
 **Session hardening — the skill can no longer destroy its own session, and can recover it when something else does.** Triggered by a real incident: after a VM restart, several agent processes raced over the same session file, overwrote it with empty copies, and reported the session as "expired" — while the session on Telegram's side was alive the whole time.
