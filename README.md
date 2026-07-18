@@ -174,6 +174,28 @@ Once installed and authenticated, just ask your agent:
 
 The agent will automatically use `tg-reader` and summarize the results.
 
+## Related X/Twitter Workflows
+
+Use this skill when the source of truth is Telegram channels and discussion
+comments. If the same OpenClaw workspace also needs public X/Twitter context,
+install [TweetClaw](https://github.com/Xquik-dev/tweetclaw) as a companion
+plugin:
+
+```bash
+openclaw plugins install clawhub:@xquik/tweetclaw
+```
+
+TweetClaw adds a safe `explore` catalog tool and an optional `tweetclaw` tool
+for X/Twitter searches, exports, monitors, webhooks, media, giveaway draws, and
+approval-gated actions through Xquik. Reference:
+[npm](https://www.npmjs.com/package/@xquik/tweetclaw) and
+[ClawHub](https://clawhub.ai/xquik/plugins/tweetclaw).
+If the workspace restricts external plugin tools, add `explore` and `tweetclaw`
+to its existing `tools.alsoAllow` list without replacing other entries.
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
+
 ## Output Example
 
 ```json

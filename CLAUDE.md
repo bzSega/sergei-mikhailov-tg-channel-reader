@@ -183,3 +183,4 @@ Update the task index in this CLAUDE.md (below) every time a task file is create
 | 0002 | Surface link-preview / web_page content in reader output | done (2026-05-16) | [tasks/task-0002.md](tasks/task-0002.md) |
 | 0003 | Migrate Pyrogram backend to pyrofork (restore recent posts) | done (2026-05-16) | [tasks/task-0003.md](tasks/task-0003.md) |
 | 0004 | Session hardening: non-interactive auth check, locking, last-known-good recovery | done (2026-07-02) | [tasks/task-0004.md](tasks/task-0004.md) |
+| 0005 | Repair companion workflow and Python installer | done (2026-07-18) | [tasks/task-0005.md](tasks/task-0005.md) |
