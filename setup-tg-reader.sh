@@ -8,7 +8,7 @@
 # What it does:
 #   1. Verifies Python 3.9+ is available
 #   2. Checks if tg-reader CLI is installed and in PATH
-#   3. Installs Python package if needed (pip install .)
+#   3. Installs Python package if needed (python3 -m pip install .)
 #   4. Verifies Telegram credentials (env vars or ~/.tg-reader.json)
 #   5. Verifies session file exists
 #   6. Runs tg-reader-check diagnostic
@@ -43,9 +43,7 @@ echo "── Python ──"
 
 if command -v python3 &>/dev/null; then
     PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    PY_MAJOR=$(python3 -c "import sys; print(sys.version_info.major)")
-    PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
-    if [ "$PY_MAJOR" -ge 3 ] && [ "$PY_MINOR" -ge 9 ]; then
+    if python3 -c "import sys; raise SystemExit(sys.version_info < (3, 9))"; then
         ok "Python $PY_VERSION"
     else
         fail "Python $PY_VERSION (need 3.9+)"
@@ -87,13 +85,13 @@ if [ "$NEED_INSTALL" -eq 1 ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [ -f "$SCRIPT_DIR/setup.py" ]; then
         info "Installing from $SCRIPT_DIR ..."
-        pip install "$SCRIPT_DIR" 2>&1 | tail -1
+        python3 -m pip install "$SCRIPT_DIR" 2>&1 | tail -1
         # Re-check
         if command -v tg-reader &>/dev/null; then
             ok "tg-reader installed successfully"
         else
             fail "tg-reader still not in PATH after install"
-            info "Try: pip install . && hash -r"
+            info "Try: python3 -m pip install . && hash -r"
             info "Or add the pip bin directory to PATH"
             ERRORS=$((ERRORS + 1))
         fi
@@ -119,13 +117,13 @@ if python3 -c "import pyrogram" 2>/dev/null; then
     # fork — installs into the same `pyrogram` namespace with current TL schema.
     if [ "$PYRO_VER" = "2.0.106" ]; then
         warn "Pyrogram 2.0.106 detected — outdated, recent posts will come through empty"
-        info "Fix: pip uninstall pyrogram -y && pip install pyrofork"
+        info "Fix: python3 -m pip uninstall pyrogram -y && python3 -m pip install pyrofork"
     else
         ok "Pyrofork (pyrogram namespace) $PYRO_VER"
     fi
     PYROGRAM_OK=1
 else
-    warn "Pyrofork not installed (pip install pyrofork tgcrypto)"
+    warn "Pyrofork not installed (python3 -m pip install pyrofork tgcrypto)"
 fi
 
 if python3 -c "import telethon" 2>/dev/null; then
@@ -133,12 +131,12 @@ if python3 -c "import telethon" 2>/dev/null; then
     ok "Telethon $TEL_VER"
     TELETHON_OK=1
 else
-    warn "Telethon not installed (pip install telethon)"
+    warn "Telethon not installed (python3 -m pip install telethon)"
 fi
 
 if [ "$PYROGRAM_OK" -eq 0 ] && [ "$TELETHON_OK" -eq 0 ]; then
     fail "No MTProto backend installed — at least one is required"
-    info "Run: pip install pyrofork tgcrypto telethon"
+    info "Run: python3 -m pip install pyrofork tgcrypto telethon"
     ERRORS=$((ERRORS + 1))
 fi
 

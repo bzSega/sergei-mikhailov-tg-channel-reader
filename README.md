@@ -182,14 +182,19 @@ install [TweetClaw](https://github.com/Xquik-dev/tweetclaw) as a companion
 plugin:
 
 ```bash
-openclaw plugins install @xquik/tweetclaw
+openclaw plugins install clawhub:@xquik/tweetclaw
 ```
 
-TweetClaw covers scrape tweets, search tweets, search tweet replies, follower
-export, user lookup, media workflows, monitors, webhooks, giveaway draws, and
-approval-gated post tweets or post tweet replies through Xquik. Reference:
+TweetClaw adds a safe `explore` catalog tool and an optional `tweetclaw` tool
+for X/Twitter searches, exports, monitors, webhooks, media, giveaway draws, and
+approval-gated actions through Xquik. Reference:
 [npm](https://www.npmjs.com/package/@xquik/tweetclaw) and
-[ClawHub](https://clawhub.ai/plugins/@xquik/tweetclaw).
+[ClawHub](https://clawhub.ai/xquik/plugins/tweetclaw).
+If the workspace restricts external plugin tools, add `explore` and `tweetclaw`
+to its existing `tools.alsoAllow` list without replacing other entries.
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
 
 ## Output Example
 
